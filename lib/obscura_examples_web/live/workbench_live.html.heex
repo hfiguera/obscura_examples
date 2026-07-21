@@ -1,0 +1,417 @@
+<div class="workbench-shell">
+  <header class="topbar">
+    <div class="brand-lockup">
+      <span class="brand-mark"><.icon name="hero-shield-check-solid" class="size-5" /></span>
+      <div>
+        <p class="brand-name">Obscura</p>
+        <p class="brand-context">Capability workbench</p>
+      </div>
+    </div>
+    <div class="topbar-status">
+      <span class="status-dot"></span>
+      <span>GitHub main</span>
+    </div>
+  </header>
+
+  <div class="workbench-grid">
+    <aside class="tool-sidebar" aria-label="Capability navigation">
+      <nav>
+        <button
+          :for={
+            {tool, label, icon} <- [
+              {:text, "Text", "hero-magnifying-glass"},
+              {:structured, "Structured", "hero-circle-stack"},
+              {:vault, "Vault & LLM", "hero-arrows-right-left"},
+              {:logger, "Logger & API", "hero-command-line"},
+              {:profiles, "Profiles", "hero-cpu-chip"}
+            ]
+          }
+          type="button"
+          phx-click="select_tool"
+          phx-value-tool={tool}
+          class={["tool-nav-item", @active_tool == tool && "is-active"]}
+        >
+          <.icon name={icon} class="size-5" />
+          <span>{label}</span>
+        </button>
+      </nav>
+      <div class="sidebar-foot">
+        <.icon name="hero-lock-closed" class="size-4" />
+        <span>Use synthetic values</span>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <section :if={@active_tool == :text} id="text-workbench" class="tool-section">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">Stable API</p>
+            <h1>Text processing</h1>
+          </div>
+          <span class="api-call">Obscura.analyze/2 · Obscura.redact/2</span>
+        </div>
+
+        <form phx-submit="run_text" class="operation-layout">
+          <div class="input-pane">
+            <div class="field-group">
+              <label for="text-input">Input</label>
+              <textarea id="text-input" name="input" rows="8" spellcheck="false">{@text_params["input"]}</textarea>
+            </div>
+
+            <div class="control-row">
+              <fieldset>
+                <legend>Action</legend>
+                <div class="segmented-control">
+                  <label :for={
+                    {value, label} <- [{"detect", "Detect"}, {"anonymize", "Anonymize"}]
+                  }>
+                    <input
+                      type="radio"
+                      name="action"
+                      value={value}
+                      checked={@text_params["action"] == value}
+                    />
+                    <span>{label}</span>
+                  </label>
+                </div>
+              </fieldset>
+
+              <div class="field-group compact-field">
+                <label for="text-profile">Profile</label>
+                <select id="text-profile" name="profile">
+                  <option
+                    :for={profile <- @profiles}
+                    value={profile}
+                    selected={@text_params["profile"] == Atom.to_string(profile)}
+                  >
+                    {profile}
+                  </option>
+                </select>
+              </div>
+
+              <div class="field-group compact-field">
+                <label for="text-operator">Operator</label>
+                <select id="text-operator" name="operator">
+                  <option
+                    :for={operator <- @operators}
+                    value={operator}
+                    selected={@text_params["operator"] == operator}
+                  >
+                    {operator}
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <fieldset class="entity-fieldset">
+              <legend>Entities</legend>
+              <div class="entity-grid">
+                <label :for={entity <- @entities} class="entity-option">
+                  <input
+                    type="checkbox"
+                    name="entities[]"
+                    value={entity}
+                    checked={selected?(@text_params, entity)}
+                  />
+                  <span>{display_entity(entity)}</span>
+                </label>
+              </div>
+            </fieldset>
+
+            <button type="submit" class="primary-command">
+              <.icon name="hero-play-solid" class="size-4" /> Run
+            </button>
+          </div>
+
+          <div class="result-pane" aria-live="polite">
+            <div class="pane-heading">
+              <h2>Result</h2>
+              <span :if={@text_result}>{@text_result.item_count} matches</span>
+            </div>
+
+            <div :if={@text_error} class="error-banner">
+              <.icon name="hero-exclamation-triangle" class="size-5" />
+              <span>{@text_error}</span>
+            </div>
+
+            <div :if={is_nil(@text_result) && is_nil(@text_error)} class="empty-state">
+              <.icon name="hero-document-magnifying-glass" class="size-8" />
+              <span>Ready</span>
+            </div>
+
+            <div :if={@text_result} class="result-content">
+              <pre class="output-block">{@text_result.output}</pre>
+              <div class="match-table-wrap">
+                <table class="match-table">
+                  <thead>
+                    <tr>
+                      <th>Entity</th>
+                      <th>Value</th>
+                      <th>Bytes</th>
+                      <th>Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr :for={match <- @text_result.matches}>
+                      <td><span class="entity-badge">{display_entity(match.entity)}</span></td>
+                      <td>{Map.get(match, :text) || Map.get(match, :replacement) || "-"}</td>
+                      <td>{match.byte_start}–{match.byte_end}</td>
+                      <td>{format_score(Map.get(match, :score))}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </form>
+      </section>
+
+      <section :if={@active_tool == :structured} id="structured-workbench" class="tool-section">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">Stable API</p>
+            <h1>Structured redaction</h1>
+          </div>
+          <span class="api-call">Obscura.Structured.redact/2</span>
+        </div>
+
+        <form phx-submit="run_structured" class="operation-layout">
+          <div class="input-pane">
+            <div class="field-group">
+              <label for="structured-input">JSON input</label>
+              <textarea id="structured-input" name="input" rows="18" spellcheck="false">{@structured_params["input"]}</textarea>
+            </div>
+            <input type="hidden" name="profile" value={@structured_params["profile"]} />
+            <input
+              :for={entity <- @structured_params["entities"]}
+              type="hidden"
+              name="entities[]"
+              value={entity}
+            />
+            <button type="submit" class="primary-command">
+              <.icon name="hero-shield-check" class="size-4" /> Redact structure
+            </button>
+          </div>
+
+          <div class="result-pane" aria-live="polite">
+            <div class="pane-heading">
+              <h2>Redacted JSON</h2>
+              <span :if={@structured_result}>{@structured_result.item_count} changes</span>
+            </div>
+            <div :if={@structured_error} class="error-banner">
+              <.icon name="hero-exclamation-triangle" class="size-5" />
+              <span>{@structured_error}</span>
+            </div>
+            <div :if={is_nil(@structured_result) && is_nil(@structured_error)} class="empty-state">
+              <.icon name="hero-code-bracket-square" class="size-8" />
+              <span>Ready</span>
+            </div>
+            <pre :if={@structured_result} class="output-block tall">{@structured_result.output}</pre>
+          </div>
+        </form>
+      </section>
+
+      <section :if={@active_tool == :vault} id="vault-workbench" class="tool-section">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">Stable API</p>
+            <h1>Vault and LLM flow</h1>
+          </div>
+          <span class="api-call">Obscura.LLM · Obscura.Stream.Rehydrator</span>
+        </div>
+
+        <div class="vault-status-band">
+          <div>
+            <span class={["status-dot", is_pid(@vault) && "is-ready"]}></span>
+            <strong>Session vault</strong>
+          </div>
+          <button type="button" phx-click="clear_vault" class="icon-command" title="Clear vault">
+            <.icon name="hero-trash" class="size-5" />
+          </button>
+        </div>
+
+        <div class="operation-layout">
+          <div class="input-pane">
+            <form phx-submit="redact_llm">
+              <div class="field-group">
+                <label for="llm-input">User message</label>
+                <textarea id="llm-input" name="input" rows="7">{@llm_input}</textarea>
+              </div>
+              <button type="submit" class="primary-command">
+                <.icon name="hero-lock-closed" class="size-4" /> Pseudonymize
+              </button>
+            </form>
+
+            <div :if={@llm_safe} class="flow-stage">
+              <span class="stage-label">Safe provider message</span>
+              <pre>{@llm_safe}</pre>
+            </div>
+          </div>
+
+          <div class="result-pane" aria-live="polite">
+            <div class="pane-heading">
+              <h2>Provider response</h2>
+            </div>
+            <div :if={@llm_error} class="error-banner">
+              <.icon name="hero-exclamation-triangle" class="size-5" />
+              <span>{@llm_error}</span>
+            </div>
+            <div :if={is_nil(@llm_response) && is_nil(@llm_error)} class="empty-state">
+              <.icon name="hero-chat-bubble-left-right" class="size-8" />
+              <span>Ready</span>
+            </div>
+            <div :if={@llm_response} class="result-content">
+              <pre class="output-block">{@llm_response}</pre>
+              <div class="command-row">
+                <button type="button" phx-click="rehydrate_llm" class="secondary-command">
+                  <.icon name="hero-arrow-path" class="size-4" /> Rehydrate
+                </button>
+                <button type="button" phx-click="stream_llm" class="secondary-command">
+                  <.icon name="hero-signal" class="size-4" /> Stream
+                </button>
+              </div>
+              <div :if={@stream_chunks != []} class="chunk-row">
+                <code :for={{chunk, index} <- Enum.with_index(@stream_chunks, 1)}>
+                  {index}: {chunk}
+                </code>
+              </div>
+              <div :if={@llm_rehydrated} class="flow-stage success-stage">
+                <span class="stage-label">Rehydrated output</span>
+                <pre>{@llm_rehydrated}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section :if={@active_tool == :logger} id="logger-workbench" class="tool-section">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">Stable integrations</p>
+            <h1>Logger and Plug</h1>
+          </div>
+          <span class="api-call">Obscura.Logger · POST /api/redact</span>
+        </div>
+
+        <form phx-submit="run_logger" class="operation-layout">
+          <div class="input-pane">
+            <div class="field-group">
+              <label for="logger-input">Metadata JSON</label>
+              <textarea id="logger-input" name="input" rows="14" spellcheck="false">{@logger_params["input"]}</textarea>
+            </div>
+            <input type="hidden" name="profile" value="fast" />
+            <input
+              :for={entity <- @logger_params["entities"]}
+              type="hidden"
+              name="entities[]"
+              value={entity}
+            />
+            <button type="submit" class="primary-command">
+              <.icon name="hero-command-line" class="size-4" /> Redact metadata
+            </button>
+          </div>
+
+          <div class="result-pane" aria-live="polite">
+            <div class="pane-heading">
+              <h2>Log-safe output</h2>
+            </div>
+            <div :if={@logger_error} class="error-banner">
+              <.icon name="hero-exclamation-triangle" class="size-5" />
+              <span>{@logger_error}</span>
+            </div>
+            <div :if={is_nil(@logger_result) && is_nil(@logger_error)} class="empty-state">
+              <.icon name="hero-command-line" class="size-8" />
+              <span>Ready</span>
+            </div>
+            <div :if={@logger_result} class="result-content">
+              <pre class="output-block">{@logger_result.output}</pre>
+              <span class="stage-label">safe_inspect/2</span>
+              <pre class="output-block compact">{@logger_result.inspected}</pre>
+            </div>
+          </div>
+        </form>
+
+        <div class="api-band">
+          <code>{"curl -X POST http://localhost:4000/api/redact -H 'content-type: application/json' -d '{\"email\":\"rachel.green@example.com\"}'"}</code>
+        </div>
+      </section>
+
+      <section :if={@active_tool == :profiles} id="profiles-workbench" class="tool-section">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">Runtime control</p>
+            <h1>Stable profiles</h1>
+          </div>
+          <span class="api-call">Obscura.Profile</span>
+        </div>
+
+        <div class="profile-table-wrap">
+          <table class="profile-table">
+            <thead>
+              <tr>
+                <th>Profile</th>
+                <th>Implementation</th>
+                <th>Dependencies</th>
+                <th>Assets</th>
+                <th>Runtime</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr :for={row <- @profile_rows}>
+                <% state = preparation_for(@preparation, row.name) %>
+                <td>
+                  <strong>:{row.name}</strong>
+                  <span class="stability-label">{row.descriptor.stability}</span>
+                </td>
+                <td><code>{row.descriptor.implementation_profile}</code></td>
+                <td>{Enum.join(row.descriptor.required_dependencies, ", ") || "None"}</td>
+                <td>{length(row.descriptor.required_assets)}</td>
+                <td>
+                  <span class={[
+                    "runtime-state",
+                    (row.name == :fast || runtime_ready?(@runtimes, row.name)) && "is-ready",
+                    state.status == :error && "is-error"
+                  ]}>
+                    {if row.name == :fast, do: "Ready", else: state.message}
+                  </span>
+                  <form :if={row.name != :fast} phx-submit="prepare_profile" class="prepare-form">
+                    <input type="hidden" name="profile" value={row.name} />
+                    <select name="backend" aria-label="Backend">
+                      <option value="binary">Binary</option>
+                      <option value="emily">Emily GPU</option>
+                    </select>
+                    <label class="download-toggle">
+                      <input type="checkbox" name="allow_download" value="true" />
+                      <span>Download</span>
+                    </label>
+                    <button type="submit" class="icon-command" title="Prepare profile">
+                      <.icon name="hero-arrow-down-tray" class="size-5" />
+                    </button>
+                  </form>
+                  <span :if={state[:bytes]} class="byte-count">{state.bytes} bytes</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="capability-band">
+          <div>
+            <span>Stable profiles</span>
+            <strong>{length(@profiles)}</strong>
+          </div>
+          <div>
+            <span>Public entity options</span>
+            <strong>{length(@entities)}</strong>
+          </div>
+          <div>
+            <span>Prepared runtimes</span>
+            <strong>{map_size(@runtimes)}</strong>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <Layouts.flash_group flash={@flash} />
+</div>
