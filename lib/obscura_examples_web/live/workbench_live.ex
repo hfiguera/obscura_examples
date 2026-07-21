@@ -4,7 +4,7 @@ defmodule ObscuraExamplesWeb.WorkbenchLive do
   alias ObscuraExamples.Demo
 
   @default_entities ~w(email phone credit_card us_ssn iban ip_address url domain)
-  @default_text "Contact Rachel at rachel.green@example.com or +1 202-555-0188. Card 4111 1111 1111 1111."
+  @default_text "Rachel works at Google in Paris. Contact her at info@example.com or +1 202-555-0188. Visit example.org. Card 4111 1111 1111 1111."
   @default_structured Jason.encode!(
                         %{
                           "customer" => %{
