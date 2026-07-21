@@ -18,14 +18,31 @@ defmodule ObscuraExamplesWeb.WorkbenchLiveTest do
       "input" => "Email rachel.green@example.com or +1 202-555-0188",
       "profile" => "fast",
       "entities" => ["email", "phone"],
-      "action" => "detect",
-      "operator" => "replace"
+      "action" => "detect"
     })
     |> render_submit()
 
     assert has_element?(view, ".entity-badge", "EMAIL")
     assert has_element?(view, "td", "rachel.green@example.com")
     assert has_element?(view, ".pane-heading span", "2 matches")
+  end
+
+  test "enables operators only for anonymization", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#text-operator[disabled]")
+
+    view
+    |> form("#text-workbench form", %{
+      "input" => "Email rachel.green@example.com",
+      "profile" => "fast",
+      "entities" => ["email"],
+      "action" => "anonymize"
+    })
+    |> render_change()
+
+    refute has_element?(view, "#text-operator[disabled]")
+    assert has_element?(view, ~s(#text-operator option[value="replace"][selected]))
   end
 
   test "pseudonymizes and rehydrates an LLM message through a session vault", %{conn: conn} do

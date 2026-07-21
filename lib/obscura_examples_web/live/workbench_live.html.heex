@@ -51,7 +51,12 @@
           <span class="api-call">Obscura.analyze/2 · Obscura.redact/2</span>
         </div>
 
-        <form phx-submit="run_text" class="operation-layout">
+        <form
+          id="text-operation-form"
+          phx-change="change_text"
+          phx-submit="run_text"
+          class="operation-layout"
+        >
           <div class="input-pane">
             <div class="field-group">
               <label for="text-input">Input</label>
@@ -94,7 +99,11 @@
 
               <div class="field-group compact-field">
                 <label for="text-operator">Operator</label>
-                <select id="text-operator" name="operator">
+                <select
+                  id="text-operator"
+                  name="operator"
+                  disabled={@text_params["action"] == "detect"}
+                >
                   <option
                     :for={operator <- @operators}
                     value={operator}

@@ -80,6 +80,11 @@ defmodule ObscuraExamplesWeb.WorkbenchLive do
     {:noreply, assign(socket, :active_tool, selected)}
   end
 
+  def handle_event("change_text", params, socket) do
+    params = Map.put_new(params, "operator", socket.assigns.text_params["operator"])
+    {:noreply, assign(socket, :text_params, params)}
+  end
+
   def handle_event("run_text", params, socket) do
     socket = maybe_start_vault(socket)
 
