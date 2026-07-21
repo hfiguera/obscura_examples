@@ -19,7 +19,7 @@ defmodule ObscuraExamples.Demo do
     :person,
     :location,
     :organization,
-    :address,
+    :street_address,
     :date_time,
     :title
   ]
@@ -31,6 +31,21 @@ defmodule ObscuraExamples.Demo do
   @spec entities() :: [atom()]
   def entities, do: @entities
 
+  @spec supported_entities(atom() | String.t()) :: [atom()]
+  def supported_entities(profile) when is_binary(profile) do
+    case Enum.find(@profiles, &(Atom.to_string(&1) == profile)) do
+      nil -> []
+      profile -> supported_entities(profile)
+    end
+  end
+
+  def supported_entities(profile) when profile in @profiles do
+    {:ok, descriptor} = Obscura.Profile.fetch(profile)
+    descriptor.supported_entities
+  end
+
+  def supported_entities(_profile), do: []
+
   @spec operators() :: [String.t()]
   def operators, do: @operators
 
@@ -41,6 +56,7 @@ defmodule ObscuraExamples.Demo do
          {:ok, profile} <- profile(params),
          :ok <- require_runtime(profile, runtimes),
          {:ok, entities} <- selected_entities(params),
+         :ok <- validate_supported_entities(profile, entities),
          {:ok, action} <- text_action(params) do
       profile_ref = Map.get(runtimes, profile, profile)
       opts = [profile: profile_ref, entities: entities, explain: true, include_text: true]
@@ -58,7 +74,8 @@ defmodule ObscuraExamples.Demo do
          {:ok, data} <- decode_json(source),
          {:ok, profile} <- profile(params),
          :ok <- require_runtime(profile, runtimes),
-         {:ok, entities} <- selected_entities(params) do
+         {:ok, entities} <- selected_entities(params),
+         :ok <- validate_supported_entities(profile, entities) do
       profile_ref = Map.get(runtimes, profile, profile)
 
       case Obscura.Structured.redact(data,
@@ -86,7 +103,8 @@ defmodule ObscuraExamples.Demo do
          {:ok, data} <- decode_json(source),
          {:ok, profile} <- profile(params),
          :ok <- require_runtime(profile, runtimes),
-         {:ok, entities} <- selected_entities(params) do
+         {:ok, entities} <- selected_entities(params),
+         :ok <- validate_supported_entities(profile, entities) do
       profile_ref = Map.get(runtimes, profile, profile)
       opts = [profile: profile_ref, entities: entities]
 
@@ -228,6 +246,17 @@ defmodule ObscuraExamples.Demo do
       end)
 
     if entities == [], do: {:error, "Select at least one entity."}, else: {:ok, entities}
+  end
+
+  defp validate_supported_entities(profile, entities) do
+    unsupported = entities -- supported_entities(profile)
+
+    if unsupported == [] do
+      :ok
+    else
+      names = Enum.map_join(unsupported, ", ", &Atom.to_string/1)
+      {:error, "Unsupported for :#{profile}: #{names}."}
+    end
   end
 
   defp text_action(params) do

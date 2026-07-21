@@ -45,6 +45,24 @@ defmodule ObscuraExamplesWeb.WorkbenchLiveTest do
     assert has_element?(view, ~s(#text-operator option[value="replace"][selected]))
   end
 
+  test "limits entity choices to the selected profile capabilities", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, ~s|input[value="street_address"]:not([disabled])|)
+    assert has_element?(view, ~s(input[value="organization"][disabled]))
+
+    render_change(view, "change_text", %{
+      "input" => "Rachel works at Google.",
+      "profile" => "accurate",
+      "entities" => ["street_address", "organization"],
+      "action" => "detect"
+    })
+
+    assert has_element?(view, ~s(input[value="street_address"][disabled]))
+    refute has_element?(view, ~s(input[value="street_address"][checked]))
+    assert has_element?(view, ~s|input[value="organization"]:not([disabled])[checked]|)
+  end
+
   test "pseudonymizes and rehydrates an LLM message through a session vault", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
 

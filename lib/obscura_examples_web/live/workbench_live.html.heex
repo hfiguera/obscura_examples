@@ -124,6 +124,7 @@
                     name="entities[]"
                     value={entity}
                     checked={selected?(@text_params, entity)}
+                    disabled={!entity_supported?(@text_params["profile"], entity)}
                   />
                   <span>{display_entity(entity)}</span>
                 </label>

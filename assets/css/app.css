@@ -418,6 +418,14 @@ fieldset legend {
   border-color: #83c9bb;
 }
 
+.entity-option input:disabled + span {
+  color: #919a96;
+  background: #eef1ef;
+  border-color: #e0e5e2;
+  cursor: not-allowed;
+  opacity: 0.66;
+}
+
 .primary-command,
 .secondary-command,
 .icon-command {

@@ -63,6 +63,28 @@ defmodule ObscuraExamples.DemoTest do
     assert Demo.profiles() == [:fast, :balanced, :accurate]
   end
 
+  test "exposes canonical entities and profile-specific capabilities" do
+    assert :street_address in Demo.entities()
+    refute :address in Demo.entities()
+
+    assert :street_address in Demo.supported_entities(:fast)
+    assert :date_time in Demo.supported_entities(:fast)
+    refute :organization in Demo.supported_entities(:fast)
+
+    for profile <- [:balanced, :accurate] do
+      assert :organization in Demo.supported_entities(profile)
+      refute :street_address in Demo.supported_entities(profile)
+      refute :date_time in Demo.supported_entities(profile)
+    end
+  end
+
+  test "rejects unsupported entities in crafted submissions", %{vault: vault} do
+    params = %{text_params("detect", "replace") | "entities" => ["organization"]}
+
+    assert {:error, "Unsupported for :fast: organization."} =
+             Demo.run_text(params, %{}, vault)
+  end
+
   test "requires a reusable runtime before model-backed inference", %{vault: vault} do
     params = %{text_params("detect", "replace") | "profile" => "balanced"}
 

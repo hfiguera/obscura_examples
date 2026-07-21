@@ -81,7 +81,11 @@ defmodule ObscuraExamplesWeb.WorkbenchLive do
   end
 
   def handle_event("change_text", params, socket) do
-    params = Map.put_new(params, "operator", socket.assigns.text_params["operator"])
+    params =
+      params
+      |> Map.put_new("operator", socket.assigns.text_params["operator"])
+      |> filter_supported_entities()
+
     {:noreply, assign(socket, :text_params, params)}
   end
 
@@ -331,6 +335,14 @@ defmodule ObscuraExamplesWeb.WorkbenchLive do
   defp parse_backend(_backend), do: {:error, "Unknown backend."}
 
   defp selected?(params, entity), do: Atom.to_string(entity) in Map.get(params, "entities", [])
+
+  defp entity_supported?(profile, entity), do: entity in Demo.supported_entities(profile)
+
+  defp filter_supported_entities(params) do
+    supported = params["profile"] |> Demo.supported_entities() |> Enum.map(&Atom.to_string/1)
+    selected = params |> Map.get("entities", []) |> Enum.filter(&(&1 in supported))
+    Map.put(params, "entities", selected)
+  end
 
   defp display_entity(entity) do
     entity |> Atom.to_string() |> String.replace("_", " ") |> String.upcase()
