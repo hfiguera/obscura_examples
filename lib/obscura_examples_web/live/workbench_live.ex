@@ -34,6 +34,7 @@ defmodule ObscuraExamplesWeb.WorkbenchLive do
         profiles: Demo.profiles(),
         entities: Demo.entities(),
         operators: Demo.operators(),
+        backend_options: backend_options(),
         profile_rows: Demo.profile_rows(),
         runtimes: %{},
         preparation: %{},
@@ -82,22 +83,15 @@ defmodule ObscuraExamplesWeb.WorkbenchLive do
   def handle_event("run_text", params, socket) do
     socket = maybe_start_vault(socket)
 
-    case Demo.run_text(params, socket.assigns.runtimes, socket.assigns.vault) do
-      {:ok, result} ->
-        {:noreply,
-         assign(socket,
-           text_params: params,
-           text_result: result,
-           text_error: nil
-         )}
+    if unprepared_profile?(params["profile"], socket.assigns.runtimes) do
+      profile = params["profile"]
 
-      {:error, message} ->
-        {:noreply,
-         assign(socket,
-           text_params: params,
-           text_result: nil,
-           text_error: message
-         )}
+      {:noreply,
+       socket
+       |> assign(:active_tool, :profiles)
+       |> put_flash(:error, "Prepare :#{profile} before running inference.")}
+    else
+      run_text(params, socket)
     end
   end
 
@@ -227,6 +221,8 @@ defmodule ObscuraExamplesWeb.WorkbenchLive do
           Obscura.Profile.prepare(profile,
             allow_download: allow_download,
             real_model_backend: backend,
+            emily_device: :gpu,
+            emily_fallback: :raise,
             compile: [batch_size: 1, sequence_length: 128],
             progress: fn event -> send(owner, {:profile_progress, profile, event}) end
           )
@@ -277,6 +273,26 @@ defmodule ObscuraExamplesWeb.WorkbenchLive do
      })}
   end
 
+  defp run_text(params, socket) do
+    case Demo.run_text(params, socket.assigns.runtimes, socket.assigns.vault) do
+      {:ok, result} ->
+        {:noreply,
+         assign(socket,
+           text_params: params,
+           text_result: result,
+           text_error: nil
+         )}
+
+      {:error, message} ->
+        {:noreply,
+         assign(socket,
+           text_params: params,
+           text_result: nil,
+           text_error: message
+         )}
+    end
+  end
+
   defp maybe_start_vault(%{assigns: %{vault: vault}} = socket) when is_pid(vault) do
     if Process.alive?(vault), do: socket, else: start_vault(socket)
   end
@@ -319,6 +335,24 @@ defmodule ObscuraExamplesWeb.WorkbenchLive do
   defp format_score(_score), do: "-"
 
   defp runtime_ready?(runtimes, profile), do: Map.has_key?(runtimes, profile)
+
+  defp unprepared_profile?(profile, runtimes) when is_binary(profile) do
+    case Enum.find(Demo.profiles(), &(Atom.to_string(&1) == profile)) do
+      nil -> false
+      :fast -> false
+      selected -> not runtime_ready?(runtimes, selected)
+    end
+  end
+
+  defp unprepared_profile?(_profile, _runtimes), do: false
+
+  defp backend_options do
+    if Code.ensure_loaded?(Emily) and Code.ensure_loaded?(Emily.Backend) do
+      [{"Emily GPU", "emily"}, {"Binary", "binary"}]
+    else
+      [{"Binary", "binary"}]
+    end
+  end
 
   defp preparation_for(preparation, profile) do
     Map.get(preparation, profile, %{status: :idle, message: "Not prepared"})

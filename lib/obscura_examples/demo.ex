@@ -39,6 +39,7 @@ defmodule ObscuraExamples.Demo do
   def run_text(params, runtimes, vault) do
     with {:ok, input} <- input(params),
          {:ok, profile} <- profile(params),
+         :ok <- require_runtime(profile, runtimes),
          {:ok, entities} <- selected_entities(params),
          {:ok, action} <- text_action(params) do
       profile_ref = Map.get(runtimes, profile, profile)
@@ -56,6 +57,7 @@ defmodule ObscuraExamples.Demo do
     with {:ok, source} <- input(params),
          {:ok, data} <- decode_json(source),
          {:ok, profile} <- profile(params),
+         :ok <- require_runtime(profile, runtimes),
          {:ok, entities} <- selected_entities(params) do
       profile_ref = Map.get(runtimes, profile, profile)
 
@@ -83,6 +85,7 @@ defmodule ObscuraExamples.Demo do
     with {:ok, source} <- input(params),
          {:ok, data} <- decode_json(source),
          {:ok, profile} <- profile(params),
+         :ok <- require_runtime(profile, runtimes),
          {:ok, entities} <- selected_entities(params) do
       profile_ref = Map.get(runtimes, profile, profile)
       opts = [profile: profile_ref, entities: entities]
@@ -199,6 +202,16 @@ defmodule ObscuraExamples.Demo do
     case Enum.find(@profiles, &(Atom.to_string(&1) == profile)) do
       nil -> {:error, "Unknown profile."}
       selected -> {:ok, selected}
+    end
+  end
+
+  defp require_runtime(:fast, _runtimes), do: :ok
+
+  defp require_runtime(profile, runtimes) do
+    if Map.has_key?(runtimes, profile) do
+      :ok
+    else
+      {:error, "Prepare :#{profile} in Profiles before running inference."}
     end
   end
 

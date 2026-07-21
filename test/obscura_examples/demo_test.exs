@@ -63,6 +63,13 @@ defmodule ObscuraExamples.DemoTest do
     assert Demo.profiles() == [:fast, :balanced, :accurate]
   end
 
+  test "requires a reusable runtime before model-backed inference", %{vault: vault} do
+    params = %{text_params("detect", "replace") | "profile" => "balanced"}
+
+    assert {:error, "Prepare :balanced in Profiles before running inference."} =
+             Demo.run_text(params, %{}, vault)
+  end
+
   defp text_params(action, operator) do
     %{
       "input" => "Email rachel.green@example.com or +1 202-555-0188",

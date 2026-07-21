@@ -65,12 +65,16 @@ The application installs `Nx` and `Bumblebee` so `:balanced` and `:accurate`
 can be prepared explicitly. Ordinary page loading and `:fast` operations never
 download models.
 
-For Apple GPU development, install Emily before compiling:
+On macOS, Emily is installed automatically and is the default preparation
+backend. Disable it explicitly when testing the portable Binary path:
 
 ```sh
-OBSCURA_EXAMPLES_EMILY=1 mix deps.get
-OBSCURA_EXAMPLES_EMILY=1 mix phx.server
+OBSCURA_EXAMPLES_EMILY=0 mix deps.get
+OBSCURA_EXAMPLES_EMILY=0 mix phx.server
 ```
+
+On other platforms, set `OBSCURA_EXAMPLES_EMILY=1` only when Emily supports the
+host and should be included.
 
 In the Profiles workbench:
 

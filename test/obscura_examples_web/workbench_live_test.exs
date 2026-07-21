@@ -64,4 +64,22 @@ defmodule ObscuraExamplesWeb.WorkbenchLiveTest do
     assert has_element?(view, "td", ":accurate")
     assert has_element?(view, ".runtime-state.is-ready", "Ready")
   end
+
+  test "gates model profiles until a reusable runtime is prepared", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, ~s(option[value="balanced"][disabled]))
+    assert has_element?(view, ~s(option[value="accurate"][disabled]))
+
+    render_submit(view, "run_text", %{
+      "input" => "Rachel works in Paris.",
+      "profile" => "balanced",
+      "entities" => ["person", "location"],
+      "action" => "detect",
+      "operator" => "replace"
+    })
+
+    assert has_element?(view, "#profiles-workbench")
+    assert render(view) =~ "Prepare :balanced before running inference."
+  end
 end

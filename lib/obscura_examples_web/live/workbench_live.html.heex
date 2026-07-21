@@ -83,8 +83,11 @@
                     :for={profile <- @profiles}
                     value={profile}
                     selected={@text_params["profile"] == Atom.to_string(profile)}
+                    disabled={profile != :fast && !runtime_ready?(@runtimes, profile)}
                   >
-                    {profile}
+                    {if profile == :fast || runtime_ready?(@runtimes, profile),
+                      do: profile,
+                      else: "#{profile} (prepare first)"}
                   </option>
                 </select>
               </div>
@@ -377,8 +380,9 @@
                   <form :if={row.name != :fast} phx-submit="prepare_profile" class="prepare-form">
                     <input type="hidden" name="profile" value={row.name} />
                     <select name="backend" aria-label="Backend">
-                      <option value="binary">Binary</option>
-                      <option value="emily">Emily GPU</option>
+                      <option :for={{label, value} <- @backend_options} value={value}>
+                        {label}
+                      </option>
                     </select>
                     <label class="download-toggle">
                       <input type="checkbox" name="allow_download" value="true" />
