@@ -73,11 +73,19 @@ defmodule ObscuraExamples.MixProject do
   end
 
   defp model_backend_deps do
+    emily_backend_deps() ++ exla_backend_deps()
+  end
+
+  defp emily_backend_deps do
     case System.get_env("OBSCURA_EXAMPLES_EMILY") do
       "0" -> []
       "1" -> [{:emily, "~> 0.7"}]
       nil -> if match?({:unix, :darwin}, :os.type()), do: [{:emily, "~> 0.7"}], else: []
     end
+  end
+
+  defp exla_backend_deps do
+    if System.get_env("OBSCURA_EXAMPLES_EXLA") == "1", do: [{:exla, "~> 0.12"}], else: []
   end
 
   # Aliases are shortcuts or tasks specific to the current project.

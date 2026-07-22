@@ -73,9 +73,46 @@ OBSCURA_EXAMPLES_EMILY=0 mix phx.server
 On other platforms, set `OBSCURA_EXAMPLES_EMILY=1` only when Emily supports the
 host and should be included.
 
+On Linux with a supported NVIDIA GPU, install EXLA explicitly and target CUDA
+before fetching and compiling dependencies. Match `XLA_TARGET` to the toolkit
+reported by `nvcc --version`; use `cuda12` for CUDA 12.x and `cuda13` for CUDA
+13.x:
+
+```sh
+export OBSCURA_EXAMPLES_EXLA=1
+export XLA_TARGET=cuda13
+export ELIXIR_ERL_OPTIONS="+sssdio 128"
+
+mix deps.get
+mix compile --warnings-as-errors
+```
+
+Keep `OBSCURA_EXAMPLES_EXLA=1` set for every Mix command in that build. When
+switching an existing checkout back to the dependency-light configuration,
+unset the variable and run `mix clean` before compiling again so a stale
+application specification does not continue to reference EXLA.
+
+Verify the host and EXLA runtime before preparing a model profile:
+
+```sh
+nvidia-smi
+mix run -e 'IO.inspect(EXLA.Client.get_supported_platforms(), label: "EXLA platforms")'
+mix run -e 'IO.inspect(EXLA.Client.fetch!(:cuda), label: "EXLA CUDA client")'
+```
+
+The checks must identify a CUDA platform and successfully fetch the `:cuda`
+client. Loading the EXLA dependency alone is not evidence of GPU execution.
+The `EXLA CUDA` workbench option is shown only when EXLA is installed; CUDA
+availability must still be proven with these runtime checks and visible GPU
+activity during inference.
+
+The reproducible Tesla T4 validation, including CUDA 13 NVSHMEM compatibility
+setup, exact detection evidence, and measured cold/warm latency, is documented
+in [`docs/linux-nvidia-exla-validation.md`](docs/linux-nvidia-exla-validation.md).
+
 In the Profiles workbench:
 
-1. Select `Emily GPU`.
+1. Select `Emily GPU` on Apple Silicon or `EXLA CUDA` on Linux/NVIDIA.
 2. Enable `Allow model downloads` only after accepting the external model
    terms and disk requirements.
 3. Prepare `:balanced` or `:accurate` once.

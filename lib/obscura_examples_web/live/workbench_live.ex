@@ -2,6 +2,7 @@ defmodule ObscuraExamplesWeb.WorkbenchLive do
   use ObscuraExamplesWeb, :live_view
 
   alias ObscuraExamples.Demo
+  alias ObscuraExamples.ModelBackend
 
   @default_entities ~w(email phone credit_card us_ssn iban ip_address url domain)
   @default_text "Rachel works at Google in Paris. Contact her at info@example.com or +1 202-555-0188. Visit example.org. Card 4111 1111 1111 1111."
@@ -285,7 +286,7 @@ defmodule ObscuraExamplesWeb.WorkbenchLive do
 
   def handle_event("prepare_profile", params, socket) do
     with {:ok, profile} <- parse_profile(params["profile"]),
-         {:ok, backend} <- parse_backend(params["backend"]),
+         {:ok, backend} <- ModelBackend.parse(params["backend"]),
          :ok <- ensure_preparation_idle(socket.assigns.preparation, profile) do
       owner = self()
       allow_download = params["allow_download"] == "true"
@@ -299,14 +300,15 @@ defmodule ObscuraExamplesWeb.WorkbenchLive do
           allow_download: allow_download
         })
         |> start_async({:prepare, profile}, fn ->
-          Obscura.Profile.prepare(profile,
-            allow_download: allow_download,
-            real_model_backend: backend,
-            emily_device: :gpu,
-            emily_fallback: :raise,
-            compile: [batch_size: 1, sequence_length: 128],
-            progress: fn event -> send(owner, {:profile_progress, profile, event}) end
-          )
+          options =
+            ModelBackend.preparation_options(backend) ++
+              [
+                allow_download: allow_download,
+                compile: [batch_size: 1, sequence_length: 128],
+                progress: fn event -> send(owner, {:profile_progress, profile, event}) end
+              ]
+
+          Obscura.Profile.prepare(profile, options)
         end)
 
       {:noreply, socket}
@@ -431,10 +433,6 @@ defmodule ObscuraExamplesWeb.WorkbenchLive do
     end
   end
 
-  defp parse_backend("emily"), do: {:ok, :emily}
-  defp parse_backend("binary"), do: {:ok, :binary}
-  defp parse_backend(_backend), do: {:error, "Unknown backend."}
-
   defp selected?(params, entity), do: Atom.to_string(entity) in Map.get(params, "entities", [])
 
   defp selected_entity_atoms(params) do
@@ -536,13 +534,7 @@ defmodule ObscuraExamplesWeb.WorkbenchLive do
 
   defp unprepared_profile?(_profile, _runtimes), do: false
 
-  defp backend_options do
-    if Code.ensure_loaded?(Emily) and Code.ensure_loaded?(Emily.Backend) do
-      [{"Emily GPU", "emily"}, {"Binary", "binary"}]
-    else
-      [{"Binary", "binary"}]
-    end
-  end
+  defp backend_options, do: ModelBackend.options()
 
   defp preparation_for(preparation, profile) do
     Map.get(preparation, profile, %{status: :idle, message: "Not prepared"})
