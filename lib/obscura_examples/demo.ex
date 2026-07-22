@@ -7,6 +7,16 @@ defmodule ObscuraExamples.Demo do
   alias Obscura.Diagnostic
 
   @profiles [:fast, :balanced, :accurate]
+  @common_entities [
+    :email,
+    :phone,
+    :person,
+    :location,
+    :organization,
+    :credit_card,
+    :us_ssn,
+    :domain
+  ]
   @entities [
     :email,
     :phone,
@@ -24,12 +34,32 @@ defmodule ObscuraExamples.Demo do
     :title
   ]
   @operators ~w(replace redact mask hash pseudonymize)
+  @model_metadata %{
+    tner_roberta_large_ontonotes5: %{
+      name: "tner/roberta-large-ontonotes5",
+      source: "https://huggingface.co/tner/roberta-large-ontonotes5"
+    },
+    jean_baptiste_roberta_large_ner_english: %{
+      name: "Jean-Baptiste/roberta-large-ner-english",
+      source: "https://huggingface.co/Jean-Baptiste/roberta-large-ner-english"
+    }
+  }
+  @profile_cache_estimates %{
+    balanced: "about 1.4 GB",
+    accurate: "about 2.8 GB"
+  }
 
   @spec profiles() :: [atom()]
   def profiles, do: @profiles
 
   @spec entities() :: [atom()]
   def entities, do: @entities
+
+  @spec common_entities() :: [atom()]
+  def common_entities, do: @common_entities
+
+  @spec advanced_entities() :: [atom()]
+  def advanced_entities, do: @entities -- @common_entities
 
   @spec supported_entities(atom() | String.t()) :: [atom()]
   def supported_entities(profile) when is_binary(profile) do
@@ -125,13 +155,23 @@ defmodule ObscuraExamples.Demo do
       readiness =
         case Obscura.Profile.preflight(profile) do
           {:ok, report} ->
-            %{status: :ready, report: report}
+            %{status: :ready, report: report, message: "Preflight passed."}
 
           {:error, diagnostic, report} ->
-            %{status: :unavailable, report: report, error: diagnostic}
+            %{
+              status: :unavailable,
+              report: report,
+              error: diagnostic,
+              message: Diagnostic.format(diagnostic)
+            }
         end
 
-      %{name: profile, descriptor: descriptor, readiness: readiness}
+      %{
+        name: profile,
+        descriptor: descriptor,
+        readiness: readiness,
+        preparation: preparation_details(profile, descriptor)
+      }
     end)
   end
 
@@ -287,8 +327,49 @@ defmodule ObscuraExamples.Demo do
     case Jason.decode(source) do
       {:ok, data} when is_map(data) or is_list(data) -> {:ok, data}
       {:ok, _data} -> {:error, "JSON input must be an object or array."}
-      {:error, _reason} -> {:error, "Input is not valid JSON."}
+      {:error, %Jason.DecodeError{} = error} -> {:error, json_error(source, error)}
     end
+  end
+
+  defp preparation_details(profile, descriptor) do
+    %{
+      models: Enum.map(descriptor.default_models, &Map.fetch!(@model_metadata, &1)),
+      approximate_cache_size: Map.get(@profile_cache_estimates, profile, "No model assets"),
+      cache_destination: bumblebee_cache_destination(),
+      backend_guidance: backend_guidance(descriptor.backend_policy)
+    }
+  end
+
+  defp bumblebee_cache_destination do
+    System.get_env("BUMBLEBEE_CACHE_DIR") ||
+      :filename.basedir(:user_cache, "bumblebee") |> to_string()
+  end
+
+  defp backend_guidance(:none), do: "No model backend required."
+
+  defp backend_guidance(:explicit) do
+    "Emily uses the Apple Silicon Metal GPU; Binary is the portable CPU path."
+  end
+
+  defp json_error(source, %Jason.DecodeError{position: position}) do
+    {line, column} = json_location(source, position)
+
+    "Invalid JSON at line #{line}, column #{column} (byte #{position}). " <>
+      "Check commas, quotes, and closing braces near that location."
+  end
+
+  defp json_location(source, position) do
+    position = min(max(position, 0), byte_size(source))
+    prefix = binary_part(source, 0, position)
+    newlines = :binary.matches(prefix, "\n")
+
+    line_start =
+      case List.last(newlines) do
+        nil -> 0
+        {index, 1} -> index + 1
+      end
+
+    {length(newlines) + 1, position - line_start + 1}
   end
 
   defp humanize(value) do

@@ -26,10 +26,54 @@ import {hooks as colocatedHooks} from "phoenix-colocated/obscura_examples"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
+const CopyToClipboard = {
+  mounted() {
+    this.handleClick = async () => {
+      const target = document.querySelector(this.el.dataset.copyTarget)
+      const label = this.el.querySelector("[data-copy-label]")
+      const status = this.el.parentElement.parentElement.querySelector("[data-copy-status]")
+
+      if (!target) return
+
+      try {
+        await navigator.clipboard.writeText(target.textContent)
+        label.textContent = "Copied"
+        status.textContent = "Curl command copied to the clipboard."
+      } catch (_error) {
+        label.textContent = "Copy failed"
+        status.textContent = "Could not copy automatically. Select the curl command manually."
+      }
+    }
+
+    this.el.addEventListener("click", this.handleClick)
+  },
+  destroyed() {
+    this.el.removeEventListener("click", this.handleClick)
+  },
+}
+
+const WorkbenchFocus = {
+  mounted() {
+    this.handleEvent("workbench:selected", ({id}) => {
+      requestAnimationFrame(() => {
+        const section = document.getElementById(id)
+        const heading = section?.querySelector("h1")
+
+        section?.scrollIntoView({block: "start"})
+        heading?.focus({preventScroll: true})
+      })
+    })
+
+    this.handleEvent("workbench:focus", ({id}) => {
+      requestAnimationFrame(() => document.getElementById(id)?.focus({preventScroll: true}))
+    })
+  },
+}
+
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: {...colocatedHooks, CopyToClipboard, WorkbenchFocus},
 })
 
 // Show progress bar on live navigation and form submits

@@ -59,6 +59,18 @@ results can contain submitted values. Use synthetic data.
 The public contract test reads Obscura's shipped `public_api.exs` manifest and
 fails when this app references a module which is not declared stable.
 
+The Text workbench starts with the capability-aware **Common** entity preset.
+**All** selects every entity supported by the active profile, **None** clears
+the selection, and less common open-class entities remain under **Advanced
+entities**. Changing profiles removes unsupported selections rather than
+submitting an invalid entity list.
+
+The Vault & LLM workbench creates a provider response locally for demonstration
+and makes no network call. Pseudonymized values remain reversible while their
+session-vault mappings exist; rehydrated output intentionally restores original
+sensitive values. Detection misses and unconfigured entity types can remain in
+all redacted or pseudonymized output.
+
 ## Model Profiles
 
 The application installs `Nx` and `Bumblebee` so `:balanced` and `:accurate`
@@ -87,7 +99,28 @@ In the Profiles workbench:
 
 Without the Download option, preparation is cache-only. `:accurate` requires
 two external model repositories and considerably more disk and memory than
-`:balanced`. The model licenses remain the deployer's responsibility.
+`:balanced`. Obscura does not bundle or license these model assets. The TNER
+checkpoint's licensing remains unresolved; every upstream model and dataset
+term remains the deployer's responsibility.
+
+The workbench identifies the Hugging Face repositories before preparation:
+
+- `:balanced`: `tner/roberta-large-ontonotes5`, approximately 1.4 GB in the
+  measured development cache;
+- `:accurate`: that TNER model plus
+  `Jean-Baptiste/roberta-large-ner-english`, approximately 2.8 GB total in the
+  measured development cache.
+
+These are approximate cache footprints, not guaranteed download sizes. The UI
+shows the active Bumblebee cache destination, which honors
+`BUMBLEBEE_CACHE_DIR`, and links directly to each model source. Emily requires
+a supported Apple Silicon/macOS Metal GPU. Binary is the portable CPU path.
+Preparation controls and both responsive profile layouts remain disabled while
+a runtime is starting or loading, and duplicate submissions are ignored. The
+selected backend and download permission remain visible throughout progress,
+and an in-flight preparation can be cancelled. Public preflight diagnostics are
+shown before preparation so missing dependencies, backends, tokenizers, or
+assets include their remediation without requiring a speculative run.
 
 The example intentionally keeps prepared runtimes in the connected LiveView
 session. A production application should prepare shared runtimes under its
@@ -96,7 +129,8 @@ supervision tree with `Obscura.Profile.Preparer` and reuse them across requests.
 ## Plug API
 
 The JSON endpoint runs `Obscura.Phoenix.Plug` in assign mode and returns only
-the redacted copy:
+the redacted copy. The workbench curl command calls this local example endpoint
+and includes a clipboard action:
 
 ```sh
 curl -X POST http://localhost:4000/api/redact \
@@ -137,6 +171,11 @@ The suite covers:
 - Logger-safe data and inspection;
 - Plug request redaction;
 - LiveView text, profile, vault, LLM, and streaming workflows;
+- entity presets, capability filtering, mode-specific result contracts, and
+  structured JSON error locations;
+- explicit vault-clear confirmation and completion status;
+- model preparation metadata and duplicate-preparation guards without loading
+  model assets;
 - enforcement of Obscura's stable API manifest.
 
 Real model preparation and inference are intentionally opt-in because they

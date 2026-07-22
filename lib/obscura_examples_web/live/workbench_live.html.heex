@@ -30,6 +30,8 @@
           phx-click="select_tool"
           phx-value-tool={tool}
           class={["tool-nav-item", @active_tool == tool && "is-active"]}
+          aria-pressed={to_string(@active_tool == tool)}
+          aria-controls={"#{tool}-workbench"}
         >
           <.icon name={icon} class="size-5" />
           <span>{label}</span>
@@ -41,12 +43,12 @@
       </div>
     </aside>
 
-    <main class="workspace">
+    <main id="workbench-workspace" class="workspace" phx-hook="WorkbenchFocus">
       <section :if={@active_tool == :text} id="text-workbench" class="tool-section">
         <div class="section-heading">
           <div>
             <p class="section-kicker">Stable API</p>
-            <h1>Text processing</h1>
+            <h1 tabindex="-1">Text processing</h1>
           </div>
           <span class="api-call">Obscura.analyze/2 · Obscura.redact/2</span>
         </div>
@@ -117,32 +119,102 @@
 
             <fieldset class="entity-fieldset">
               <legend>Entities</legend>
+              <div class="entity-heading">
+                <div class="entity-presets" aria-label="Entity selection presets">
+                  <button
+                    type="button"
+                    phx-click="select_entity_preset"
+                    phx-value-preset="common"
+                    class="preset-command"
+                  >
+                    Common
+                  </button>
+                  <button
+                    type="button"
+                    phx-click="select_entity_preset"
+                    phx-value-preset="all"
+                    class="preset-command"
+                  >
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    phx-click="select_entity_preset"
+                    phx-value-preset="none"
+                    class="preset-command"
+                  >
+                    None
+                  </button>
+                </div>
+              </div>
               <div class="entity-grid">
-                <label :for={entity <- @entities} class="entity-option">
+                <label :for={entity <- @common_entities} class="entity-option">
                   <input
                     type="checkbox"
                     name="entities[]"
                     value={entity}
                     checked={selected?(@text_params, entity)}
                     disabled={!entity_supported?(@text_params["profile"], entity)}
+                    aria-label={entity_accessible_label(@text_params["profile"], entity)}
                   />
                   <span>{display_entity(entity)}</span>
                 </label>
               </div>
+              <button
+                type="button"
+                phx-click="toggle_advanced_entities"
+                class="advanced-toggle"
+                aria-expanded={to_string(@entities_expanded)}
+                aria-controls="advanced-entities"
+              >
+                <.icon
+                  name={if @entities_expanded, do: "hero-chevron-up", else: "hero-chevron-down"}
+                  class="size-4"
+                /> Advanced entities
+                <span>{advanced_selection_count(@text_params)} selected</span>
+              </button>
+              <div
+                :if={@entities_expanded}
+                id="advanced-entities"
+                class="entity-grid advanced-entity-grid"
+              >
+                <label :for={entity <- @advanced_entities} class="entity-option">
+                  <input
+                    type="checkbox"
+                    name="entities[]"
+                    value={entity}
+                    checked={selected?(@text_params, entity)}
+                    disabled={!entity_supported?(@text_params["profile"], entity)}
+                    aria-label={entity_accessible_label(@text_params["profile"], entity)}
+                  />
+                  <span>{display_entity(entity)}</span>
+                </label>
+              </div>
+              <p
+                :if={unsupported_entities?(@text_params["profile"])}
+                class="entity-capability-note"
+              >
+                <code>[-]</code>
+                Unavailable entities are not supported by :{@text_params["profile"]}.
+              </p>
             </fieldset>
 
             <button type="submit" class="primary-command">
               <.icon name="hero-play-solid" class="size-4" /> Run
             </button>
+            <p :if={@text_result} class="command-feedback" role="status">
+              <.icon name="hero-check-circle" class="size-4" />
+              {result_summary(@text_result)}
+            </p>
           </div>
 
-          <div class="result-pane" aria-live="polite">
+          <div class="result-pane">
             <div class="pane-heading">
-              <h2>Result</h2>
-              <span :if={@text_result}>{@text_result.item_count} matches</span>
+              <h2>{if @text_result, do: result_heading(@text_result), else: "Result"}</h2>
+              <span :if={@text_result}>{result_count(@text_result)}</span>
             </div>
 
-            <div :if={@text_error} class="error-banner">
+            <div :if={@text_error} class="error-banner" role="alert">
               <.icon name="hero-exclamation-triangle" class="size-5" />
               <span>{@text_error}</span>
             </div>
@@ -156,20 +228,36 @@
               <pre class="output-block">{@text_result.output}</pre>
               <div class="match-table-wrap">
                 <table class="match-table">
-                  <thead>
+                  <thead :if={@text_result.kind == :analysis}>
                     <tr>
                       <th>Entity</th>
-                      <th>Value</th>
+                      <th>Detected text</th>
                       <th>Bytes</th>
                       <th>Score</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody :if={@text_result.kind == :analysis}>
                     <tr :for={match <- @text_result.matches}>
                       <td><span class="entity-badge">{display_entity(match.entity)}</span></td>
-                      <td>{Map.get(match, :text) || Map.get(match, :replacement) || "-"}</td>
+                      <td>{match.text}</td>
                       <td>{match.byte_start}–{match.byte_end}</td>
-                      <td>{format_score(Map.get(match, :score))}</td>
+                      <td>{format_score(match.score)}</td>
+                    </tr>
+                  </tbody>
+                  <thead :if={@text_result.kind == :anonymization}>
+                    <tr>
+                      <th>Entity</th>
+                      <th>Replacement</th>
+                      <th>Source bytes</th>
+                      <th>Operator</th>
+                    </tr>
+                  </thead>
+                  <tbody :if={@text_result.kind == :anonymization}>
+                    <tr :for={match <- @text_result.matches}>
+                      <td><span class="entity-badge">{display_entity(match.entity)}</span></td>
+                      <td>{match.replacement || "(removed)"}</td>
+                      <td>{match.byte_start}–{match.byte_end}</td>
+                      <td>{match.operator}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -183,7 +271,7 @@
         <div class="section-heading">
           <div>
             <p class="section-kicker">Stable API</p>
-            <h1>Structured redaction</h1>
+            <h1 tabindex="-1">Structured redaction</h1>
           </div>
           <span class="api-call">Obscura.Structured.redact/2</span>
         </div>
@@ -204,14 +292,18 @@
             <button type="submit" class="primary-command">
               <.icon name="hero-shield-check" class="size-4" /> Redact structure
             </button>
+            <p :if={@structured_result} class="command-feedback" role="status">
+              <.icon name="hero-check-circle" class="size-4" />
+              Structured redaction complete: {@structured_result.item_count} changes. Results follow.
+            </p>
           </div>
 
-          <div class="result-pane" aria-live="polite">
+          <div class="result-pane">
             <div class="pane-heading">
               <h2>Redacted JSON</h2>
               <span :if={@structured_result}>{@structured_result.item_count} changes</span>
             </div>
-            <div :if={@structured_error} class="error-banner">
+            <div :if={@structured_error} class="error-banner" role="alert">
               <.icon name="hero-exclamation-triangle" class="size-5" />
               <span>{@structured_error}</span>
             </div>
@@ -228,7 +320,7 @@
         <div class="section-heading">
           <div>
             <p class="section-kicker">Stable API</p>
-            <h1>Vault and LLM flow</h1>
+            <h1 tabindex="-1">Vault and LLM flow</h1>
           </div>
           <span class="api-call">Obscura.LLM · Obscura.Stream.Rehydrator</span>
         </div>
@@ -236,12 +328,55 @@
         <div class="vault-status-band">
           <div>
             <span class={["status-dot", is_pid(@vault) && "is-ready"]}></span>
-            <strong>Session vault</strong>
+            <strong>{if is_pid(@vault),
+              do: "Session vault ready",
+              else: "Session vault unavailable"}</strong>
           </div>
-          <button type="button" phx-click="clear_vault" class="icon-command" title="Clear vault">
+          <button
+            :if={vault_populated?(assigns) && !@vault_clear_pending}
+            id="request-clear-vault"
+            type="button"
+            phx-click="request_clear_vault"
+            class="icon-command"
+            aria-label="Clear session vault"
+            title="Clear session vault"
+          >
             <.icon name="hero-trash" class="size-5" />
           </button>
         </div>
+        <div
+          :if={@vault_clear_pending}
+          id="vault-clear-confirmation"
+          class="confirmation-band"
+          role="alert"
+        >
+          <div>
+            <strong>Clear session vault?</strong>
+            <span>Issued pseudonyms will no longer be reversible in this session.</span>
+          </div>
+          <div class="command-row">
+            <button
+              id="cancel-clear-vault"
+              type="button"
+              phx-click="cancel_clear_vault"
+              class="secondary-command"
+            >
+              Cancel
+            </button>
+            <button type="button" phx-click="clear_vault" class="danger-command">
+              <.icon name="hero-trash" class="size-4" /> Clear mappings
+            </button>
+          </div>
+        </div>
+        <p
+          :if={@vault_notice}
+          id="vault-clear-notice"
+          class="notice-banner"
+          role="status"
+          tabindex="-1"
+        >
+          <.icon name="hero-check-circle" class="size-5" /> {@vault_notice}
+        </p>
 
         <div class="operation-layout">
           <div class="input-pane">
@@ -253,19 +388,27 @@
               <button type="submit" class="primary-command">
                 <.icon name="hero-lock-closed" class="size-4" /> Pseudonymize
               </button>
+              <p :if={@llm_response} class="command-feedback" role="status">
+                <.icon name="hero-check-circle" class="size-4" /> Pseudonymization complete.
+                A local simulated response is ready; no network call occurred.
+              </p>
             </form>
 
             <div :if={@llm_safe} class="flow-stage">
-              <span class="stage-label">Safe provider message</span>
+              <span class="stage-label">Pseudonymized message for a provider</span>
               <pre>{@llm_safe}</pre>
+              <p class="risk-note">
+                Covers configured email and phone entities only. Detection misses and other sensitive data may remain.
+              </p>
             </div>
           </div>
 
-          <div class="result-pane" aria-live="polite">
+          <div class="result-pane">
             <div class="pane-heading">
-              <h2>Provider response</h2>
+              <h2>Simulated provider response</h2>
+              <span>No network call</span>
             </div>
-            <div :if={@llm_error} class="error-banner">
+            <div :if={@llm_error} class="error-banner" role="alert">
               <.icon name="hero-exclamation-triangle" class="size-5" />
               <span>{@llm_error}</span>
             </div>
@@ -277,7 +420,7 @@
               <pre class="output-block">{@llm_response}</pre>
               <div class="command-row">
                 <button type="button" phx-click="rehydrate_llm" class="secondary-command">
-                  <.icon name="hero-arrow-path" class="size-4" /> Rehydrate
+                  <.icon name="hero-arrow-path" class="size-4" /> Restore original PII
                 </button>
                 <button type="button" phx-click="stream_llm" class="secondary-command">
                   <.icon name="hero-signal" class="size-4" /> Stream
@@ -289,8 +432,11 @@
                 </code>
               </div>
               <div :if={@llm_rehydrated} class="flow-stage success-stage">
-                <span class="stage-label">Rehydrated output</span>
+                <span class="stage-label">Original PII restored from the session vault</span>
                 <pre>{@llm_rehydrated}</pre>
+                <p class="risk-note">
+                  This output intentionally contains the original sensitive values. Handle it accordingly.
+                </p>
               </div>
             </div>
           </div>
@@ -301,7 +447,7 @@
         <div class="section-heading">
           <div>
             <p class="section-kicker">Stable integrations</p>
-            <h1>Logger and Plug</h1>
+            <h1 tabindex="-1">Logger and Plug</h1>
           </div>
           <span class="api-call">Obscura.Logger · POST /api/redact</span>
         </div>
@@ -322,13 +468,17 @@
             <button type="submit" class="primary-command">
               <.icon name="hero-command-line" class="size-4" /> Redact metadata
             </button>
+            <p :if={@logger_result} class="command-feedback" role="status">
+              <.icon name="hero-check-circle" class="size-4" /> Metadata redaction complete.
+              Results follow; configured coverage is not a guarantee.
+            </p>
           </div>
 
-          <div class="result-pane" aria-live="polite">
+          <div class="result-pane">
             <div class="pane-heading">
-              <h2>Log-safe output</h2>
+              <h2>Redacted logging output</h2>
             </div>
-            <div :if={@logger_error} class="error-banner">
+            <div :if={@logger_error} class="error-banner" role="alert">
               <.icon name="hero-exclamation-triangle" class="size-5" />
               <span>{@logger_error}</span>
             </div>
@@ -338,6 +488,9 @@
             </div>
             <div :if={@logger_result} class="result-content">
               <pre class="output-block">{@logger_result.output}</pre>
+              <p class="risk-note">
+                Redacted for the configured entity set. Detection misses and unconfigured sensitive fields may remain.
+              </p>
               <span class="stage-label">safe_inspect/2</span>
               <pre class="output-block compact">{@logger_result.inspected}</pre>
             </div>
@@ -345,7 +498,24 @@
         </form>
 
         <div class="api-band">
-          <code>{"curl -X POST http://localhost:4000/api/redact -H 'content-type: application/json' -d '{\"email\":\"rachel.green@example.com\"}'"}</code>
+          <div class="api-band-heading">
+            <div>
+              <strong>Local Plug endpoint</strong>
+              <span>This request calls the example app running on localhost.</span>
+            </div>
+            <button
+              id="copy-plug-curl"
+              type="button"
+              class="secondary-command copy-command"
+              phx-hook="CopyToClipboard"
+              data-copy-target="#plug-curl"
+            >
+              <.icon name="hero-clipboard-document" class="size-4" />
+              <span data-copy-label>Copy curl</span>
+            </button>
+          </div>
+          <code id="plug-curl">{"curl -X POST http://localhost:4000/api/redact -H 'content-type: application/json' -d '{\"email\":\"rachel.green@example.com\"}'"}</code>
+          <span class="sr-only" data-copy-status aria-live="polite"></span>
         </div>
       </section>
 
@@ -353,12 +523,19 @@
         <div class="section-heading">
           <div>
             <p class="section-kicker">Runtime control</p>
-            <h1>Stable profiles</h1>
+            <h1 tabindex="-1">Stable profiles</h1>
           </div>
-          <span class="api-call">Obscura.Profile</span>
+          <span class="api-call">describe/1 · preflight/1 · prepare/2</span>
         </div>
 
-        <div class="profile-table-wrap">
+        <div class="profile-guidance">
+          <.icon name="hero-information-circle" class="size-5" />
+          <p>
+            Preparation never downloads implicitly. Leave download permission unchecked to use cached assets only; missing assets return remediation instead of starting a network request. Obscura does not bundle or license these model assets. TNER checkpoint licensing is unresolved; review every upstream term for your deployment.
+          </p>
+        </div>
+
+        <div class="profile-table-wrap profile-desktop">
           <table class="profile-table">
             <thead>
               <tr>
@@ -377,25 +554,69 @@
                   <span class="stability-label">{row.descriptor.stability}</span>
                 </td>
                 <td><code>{row.descriptor.implementation_profile}</code></td>
-                <td>{Enum.join(row.descriptor.required_dependencies, ", ") || "None"}</td>
-                <td>{length(row.descriptor.required_assets)}</td>
                 <td>
-                  <span class={[
-                    "runtime-state",
-                    (row.name == :fast || runtime_ready?(@runtimes, row.name)) && "is-ready",
-                    state.status == :error && "is-error"
-                  ]}>
-                    {if row.name == :fast, do: "Ready", else: state.message}
+                  <strong>Required</strong>
+                  {display_list(row.descriptor.required_dependencies)}
+                  <span class="profile-secondary">
+                    Optional: {display_list(row.descriptor.optional_dependencies)}
                   </span>
-                  <form :if={row.name != :fast} phx-submit="prepare_profile" class="prepare-form">
+                </td>
+                <td>
+                  <span>{display_list(row.descriptor.required_assets)}</span>
+                  <span class="profile-secondary">{asset_size_label(row.preparation)}</span>
+                  <div :if={row.preparation.models != []} class="model-list">
+                    <a
+                      :for={model <- row.preparation.models}
+                      href={model.source}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {model.name} <span class="sr-only">(opens in a new tab)</span>
+                    </a>
+                  </div>
+                </td>
+                <td>
+                  <span
+                    class={[
+                      "runtime-state",
+                      (row.name == :fast || runtime_ready?(@runtimes, row.name)) && "is-ready",
+                      state.status == :error && "is-error"
+                    ]}
+                    role="status"
+                    aria-live="polite"
+                    aria-label={"Runtime status for :#{row.name}: #{profile_state_message(row.name, state, @runtimes)}"}
+                  >
+                    {profile_state_message(row.name, state, @runtimes)}
+                  </span>
+                  <span class={[
+                    "preflight-state",
+                    row.readiness.status == :ready && "is-ready",
+                    row.readiness.status == :unavailable && "is-warning"
+                  ]}>
+                    Preflight: {row.readiness.status}
+                  </span>
+                  <span class="preflight-message">{row.readiness.message}</span>
+                  <span :if={row.name != :fast} class="profile-secondary">
+                    {row.preparation.backend_guidance}
+                  </span>
+                  <form
+                    :if={row.name != :fast}
+                    phx-submit="prepare_profile"
+                    class="prepare-form"
+                    aria-busy={to_string(state.status in [:starting, :working])}
+                  >
                     <input type="hidden" name="profile" value={row.name} />
                     <div class="prepare-options">
                       <select
                         name="backend"
-                        aria-label="Backend"
+                        aria-label={"Backend for :#{row.name}"}
                         disabled={state.status in [:starting, :working]}
                       >
-                        <option :for={{label, value} <- @backend_options} value={value}>
+                        <option
+                          :for={{label, value} <- @backend_options}
+                          value={value}
+                          selected={backend_selected?(state, value)}
+                        >
                           {label}
                         </option>
                       </select>
@@ -404,6 +625,8 @@
                           type="checkbox"
                           name="allow_download"
                           value="true"
+                          checked={state[:allow_download] == true}
+                          aria-label={"Allow model downloads for :#{row.name}"}
                           disabled={state.status in [:starting, :working]}
                         />
                         <span>Allow model downloads</span>
@@ -413,33 +636,170 @@
                     <button
                       type="submit"
                       class="prepare-command"
+                      data-profile={row.name}
                       disabled={state.status in [:starting, :working]}
                       phx-disable-with="Preparing..."
                     >
                       <.icon name="hero-cpu-chip" class="size-4" />
                       <span>Prepare</span>
                     </button>
+                    <button
+                      :if={state.status in [:starting, :working]}
+                      type="button"
+                      phx-click="cancel_preparation"
+                      phx-value-profile={row.name}
+                      class="secondary-command cancel-preparation"
+                    >
+                      <.icon name="hero-x-mark" class="size-4" /> Cancel preparation
+                    </button>
                   </form>
                   <span :if={state[:bytes]} class="byte-count">{state.bytes} bytes</span>
+                  <span :if={row.name != :fast} class="cache-path">
+                    Cache: <code>{row.preparation.cache_destination}</code>
+                  </span>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <div class="capability-band">
-          <div>
-            <span>Stable profiles</span>
-            <strong>{length(@profiles)}</strong>
-          </div>
-          <div>
-            <span>Public entity options</span>
-            <strong>{length(@entities)}</strong>
-          </div>
-          <div>
-            <span>Prepared runtimes</span>
-            <strong>{map_size(@runtimes)}</strong>
-          </div>
+        <div class="profile-list profile-mobile">
+          <article :for={row <- @profile_rows} class="profile-card">
+            <% state = preparation_for(@preparation, row.name) %>
+            <div class="profile-card-heading">
+              <strong>:{row.name}</strong>
+              <span class="stability-label">{row.descriptor.stability}</span>
+            </div>
+            <dl class="profile-facts">
+              <div>
+                <dt>Implementation</dt>
+                <dd><code>{row.descriptor.implementation_profile}</code></dd>
+              </div>
+              <div>
+                <dt>Dependencies</dt>
+                <dd>{display_list(row.descriptor.required_dependencies)}</dd>
+              </div>
+              <div>
+                <dt>Optional</dt>
+                <dd>{display_list(row.descriptor.optional_dependencies)}</dd>
+              </div>
+              <div>
+                <dt>Assets</dt>
+                <dd>
+                  {display_list(row.descriptor.required_assets)}
+                  <span class="profile-secondary">{asset_size_label(row.preparation)}</span>
+                </dd>
+              </div>
+              <div :if={row.preparation.models != []}>
+                <dt>Models</dt>
+                <dd class="model-list">
+                  <a
+                    :for={model <- row.preparation.models}
+                    href={model.source}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {model.name} <span class="sr-only">(opens in a new tab)</span>
+                  </a>
+                </dd>
+              </div>
+              <div :if={row.name != :fast}>
+                <dt>Backend</dt>
+                <dd>{row.preparation.backend_guidance}</dd>
+              </div>
+              <div :if={row.name != :fast}>
+                <dt>Cache</dt>
+                <dd class="cache-path"><code>{row.preparation.cache_destination}</code></dd>
+              </div>
+              <div>
+                <dt>Runtime</dt>
+                <dd>
+                  <span
+                    class={[
+                      "runtime-state",
+                      (row.name == :fast || runtime_ready?(@runtimes, row.name)) && "is-ready",
+                      state.status == :error && "is-error"
+                    ]}
+                    role="status"
+                    aria-live="polite"
+                    aria-label={"Runtime status for :#{row.name}: #{profile_state_message(row.name, state, @runtimes)}"}
+                  >
+                    {profile_state_message(row.name, state, @runtimes)}
+                  </span>
+                </dd>
+              </div>
+              <div>
+                <dt>Preflight</dt>
+                <dd>
+                  <span class={[
+                    "preflight-state",
+                    row.readiness.status == :ready && "is-ready",
+                    row.readiness.status == :unavailable && "is-warning"
+                  ]}>
+                    {row.readiness.status}
+                  </span>
+                  <span class="preflight-message">{row.readiness.message}</span>
+                </dd>
+              </div>
+            </dl>
+            <form
+              :if={row.name != :fast}
+              phx-submit="prepare_profile"
+              class="prepare-form"
+              aria-busy={to_string(state.status in [:starting, :working])}
+            >
+              <input type="hidden" name="profile" value={row.name} />
+              <div class="prepare-options">
+                <label>
+                  <span>Backend</span>
+                  <select
+                    name="backend"
+                    aria-label={"Backend for :#{row.name}"}
+                    disabled={state.status in [:starting, :working]}
+                  >
+                    <option
+                      :for={{label, value} <- @backend_options}
+                      value={value}
+                      selected={backend_selected?(state, value)}
+                    >
+                      {label}
+                    </option>
+                  </select>
+                </label>
+                <label class="download-toggle">
+                  <input
+                    type="checkbox"
+                    name="allow_download"
+                    value="true"
+                    checked={state[:allow_download] == true}
+                    aria-label={"Allow model downloads for :#{row.name}"}
+                    disabled={state.status in [:starting, :working]}
+                  />
+                  <span>Allow model downloads</span>
+                </label>
+                <span class="prepare-hint">Unchecked uses cached assets only.</span>
+              </div>
+              <button
+                type="submit"
+                class="prepare-command"
+                data-profile={row.name}
+                disabled={state.status in [:starting, :working]}
+                phx-disable-with="Preparing..."
+              >
+                <.icon name="hero-cpu-chip" class="size-4" /> <span>Prepare</span>
+              </button>
+              <button
+                :if={state.status in [:starting, :working]}
+                type="button"
+                phx-click="cancel_preparation"
+                phx-value-profile={row.name}
+                class="secondary-command cancel-preparation"
+              >
+                <.icon name="hero-x-mark" class="size-4" /> Cancel preparation
+              </button>
+            </form>
+            <span :if={state[:bytes]} class="byte-count">{state.bytes} bytes</span>
+          </article>
         </div>
       </section>
     </main>
