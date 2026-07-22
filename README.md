@@ -7,29 +7,14 @@ adapters, fixtures, or repository internals.
 
 ## Current Dependency
 
-Obscura has not been published to Hex and its canonical repository is private.
-The application therefore uses the authenticated SSH repository URL and tracks
-`main`:
-
-```elixir
-{:obscura, git: "git@github.com:hfiguera/obscura.git", branch: "main"}
-```
-
-`mix.lock` pins an exact Obscura commit. Run `mix deps.update obscura` when this
-application should validate a newer `main` revision.
-
-Once the repository is public, replace the dependency with the anonymous
-GitHub form:
-
-```elixir
-{:obscura, github: "hfiguera/obscura", branch: "main"}
-```
-
-After the first Hex release, the normal application dependency should be:
+The application consumes the published Obscura package from Hex:
 
 ```elixir
 {:obscura, "~> 0.1.0"}
 ```
+
+`mix.lock` pins the resolved package release and checksum. Update Obscura
+through the normal Hex dependency workflow.
 
 ## Run
 

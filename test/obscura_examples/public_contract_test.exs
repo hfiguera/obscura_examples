@@ -24,11 +24,15 @@ defmodule ObscuraExamples.PublicContractTest do
     end
   end
 
-  test "Obscura is fetched as a git dependency from canonical main" do
+  test "Obscura is fetched from the published Hex release" do
     lock = Mix.Dep.Lock.read()[:obscura]
 
-    assert {:git, "git@github.com:hfiguera/obscura.git", revision, [branch: "main"]} = lock
-    assert is_binary(revision)
-    assert byte_size(revision) == 40
+    assert {:hex, :obscura, "0.1.0", package_checksum, [:mix], _dependencies, "hexpm",
+            release_checksum} = lock
+
+    assert byte_size(package_checksum) == 64
+
+    assert release_checksum ==
+             "1ba57720287dd9a44030e5ed27139876364c636bc0a388cc596ccba7bf070614"
   end
 end
