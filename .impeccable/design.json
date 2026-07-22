@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-22T01:23:00Z",
+  "title": "Design System: Obscura Workbench",
+  "extensions": {
+    "colorMeta": {
+      "ink": {"role": "neutral", "displayName": "Workbench Ink", "canonical": "#17211f", "tonalRamp": ["#0c1110", "#17211f", "#2f3c39", "#53615d", "#7d8985", "#aeb7b4", "#d9dfdc", "#f4f7f5"]},
+      "teal": {"role": "primary", "displayName": "Operational Teal", "canonical": "#087f70", "tonalRamp": ["#05241f", "#06443b", "#06685c", "#087f70", "#35a894", "#83c9bb", "#bce4da", "#e7f5f1"]},
+      "canvas": {"role": "neutral", "displayName": "Canvas Mist", "canonical": "#f4f7f5", "tonalRamp": ["#17211f", "#303b38", "#53605c", "#7f8a86", "#aeb8b4", "#d9dfdc", "#e9eeeb", "#f4f7f5"]},
+      "sidebar": {"role": "neutral", "displayName": "Utility Charcoal", "canonical": "#202826", "tonalRamp": ["#111715", "#202826", "#31413d", "#52615d", "#7d8985", "#aeb8b4", "#d9dfdc", "#f4f7f5"]}
+    },
+    "typographyMeta": {
+      "headline": {"displayName": "Workbench Headline", "purpose": "Names the active capability surface."},
+      "body": {"displayName": "Operational Body", "purpose": "Explains behavior and reports results without marketing cadence."},
+      "mono": {"displayName": "Data Boundary", "purpose": "Distinguishes APIs, inputs, outputs, tokens, and model identifiers."}
+    },
+    "shadows": [
+      {"name": "workspace-ambient", "value": "0 10px 30px rgba(33, 48, 43, 0.05)", "purpose": "Separates the primary operation surface from the canvas."},
+      {"name": "transient-overlay", "value": "0 12px 32px rgba(23, 33, 31, 0.18)", "purpose": "Keeps flash and connection feedback above active work."},
+      {"name": "selected-control", "value": "0 1px 3px rgba(23, 33, 31, 0.12)", "purpose": "Identifies the active segment without decorative elevation."}
+    ],
+    "motion": [],
+    "breakpoints": [
+      {"name": "stack-operation", "value": "1060px"},
+      {"name": "compact-navigation", "value": "760px"}
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Command",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Runs the active workbench operation.",
+      "html": "<button class=\"ds-primary-command\">Run</button>",
+      "css": ".ds-primary-command { min-height: 40px; padding: 0 16px; color: var(--paper, #ffffff); background: var(--teal, #087f70); border: 1px solid var(--teal, #087f70); border-radius: 5px; font: 700 13px Inter, ui-sans-serif, system-ui, sans-serif; } .ds-primary-command:hover { background: var(--teal-dark, #06685c); } .ds-primary-command:focus-visible { outline: 3px solid rgba(8, 127, 112, 0.22); outline-offset: 1px; }"
+    },
+    {
+      "name": "Secondary Command",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Runs a supporting or reversible workflow command.",
+      "html": "<button class=\"ds-secondary-command\">Rehydrate</button>",
+      "css": ".ds-secondary-command { min-height: 36px; padding: 0 12px; color: #35413e; background: var(--paper, #ffffff); border: 1px solid #cbd4d0; border-radius: 5px; font: 700 12px Inter, ui-sans-serif, system-ui, sans-serif; } .ds-secondary-command:hover { border-color: #79bcae; } .ds-secondary-command:focus-visible { outline: 3px solid rgba(8, 127, 112, 0.22); outline-offset: 1px; }"
+    },
+    {
+      "name": "Operational Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Captures synthetic text or structured payloads.",
+      "html": "<label class=\"ds-field\"><span>Input</span><input value=\"info@example.com\" /></label>",
+      "css": ".ds-field { display: grid; gap: 7px; color: #44504d; font: 700 12px Inter, ui-sans-serif, system-ui, sans-serif; } .ds-field input { height: 38px; padding: 0 10px; color: var(--ink, #17211f); background: var(--paper, #ffffff); border: 1px solid #cbd4d0; border-radius: 5px; font: 400 13px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; } .ds-field input:focus-visible { outline: 3px solid rgba(8, 127, 112, 0.22); outline-offset: 1px; }"
+    },
+    {
+      "name": "Entity Choice",
+      "kind": "chip",
+      "refersTo": "entity-selected",
+      "description": "Selects a supported detection entity.",
+      "html": "<label class=\"ds-entity-choice\"><input type=\"checkbox\" checked /><span>EMAIL</span></label>",
+      "css": ".ds-entity-choice { position: relative; display: inline-block; } .ds-entity-choice input { position: absolute; opacity: 0; } .ds-entity-choice span { display: block; min-height: 32px; padding: 8px 12px; color: #58645f; background: #f5f7f6; border: 1px solid #dfe5e2; border-radius: 4px; font: 800 10px Inter, ui-sans-serif, system-ui, sans-serif; } .ds-entity-choice input:checked + span { color: var(--teal-dark, #06685c); background: var(--teal-soft, #e7f5f1); border-color: #83c9bb; } .ds-entity-choice input:focus-visible + span { outline: 3px solid rgba(8, 127, 112, 0.22); outline-offset: 1px; }"
+    },
+    {
+      "name": "Tool Navigation Item",
+      "kind": "nav",
+      "description": "Moves between Obscura capability workbenches.",
+      "html": "<button class=\"ds-tool-nav is-active\">Text</button>",
+      "css": ".ds-tool-nav { min-height: 42px; padding: 0 12px; color: var(--sidebar-muted, #aeb8b4); background: transparent; border: 1px solid transparent; border-radius: 6px; font: 600 14px Inter, ui-sans-serif, system-ui, sans-serif; text-align: left; } .ds-tool-nav:hover { color: #ffffff; background: #2b3532; } .ds-tool-nav.is-active { color: #ffffff; background: #31413d; border-color: #445652; box-shadow: inset 3px 0 0 #46c6ad; } .ds-tool-nav:focus-visible { outline: 3px solid rgba(70, 198, 173, 0.35); outline-offset: 1px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Integration Lab",
+    "overview": "The Obscura Workbench is a quiet technical surface where behavior can be exercised and inspected without ceremony. It uses restrained neutral layers, a dark utility shell, and one controlled teal accent so input, state, output, and API boundaries remain the strongest signals on every screen. Density is intentional but ordered. Familiar controls, compact labels, byte-safe output, and explicit runtime states make the interface feel like a dependable development instrument rather than a product tour.",
+    "keyCharacteristics": [
+      "Restrained light workspace inside a dark utility shell.",
+      "Teal reserved for commands, current navigation, focus, and selected state.",
+      "Compact system typography with monospace for APIs, inputs, and outputs.",
+      "Flat, bordered structure with shallow elevation used only for large working surfaces and transient feedback.",
+      "Responsive structure that collapses columns before reducing legibility."
+    ],
+    "rules": [
+      {"name": "The Signal-Only Accent Rule", "body": "Teal marks an action, current selection, focus, or meaningful state. It is never ambient decoration.", "section": "colors"},
+      {"name": "The State Redundancy Rule", "body": "Success, warning, error, loading, and disabled states use words or icons in addition to color.", "section": "colors"},
+      {"name": "The Data Boundary Rule", "body": "Use monospace when text represents code, a payload, a token, an identifier, or machine output; use sans-serif for decisions and guidance.", "section": "typography"},
+      {"name": "The Fixed Scale Rule", "body": "Product typography uses stable pixel sizes. Do not scale labels or headings with viewport width.", "section": "typography"},
+      {"name": "The Flat-by-Default Rule", "body": "Tables, fields, bands, badges, and ordinary panels use boundaries or tonal contrast, not decorative shadows.", "section": "elevation"}
+    ],
+    "dos": [
+      "Do keep the selected capability, API name, input, result, and relevant operational state visible together.",
+      "Do reserve #087f70 for primary actions, current navigation, focus, and selected state.",
+      "Do use one-pixel boundaries and restrained tonal layers for dense structure.",
+      "Do use synthetic examples and explicit labels for model downloads, cache-only preparation, unsupported entities, and reversible operations.",
+      "Do keep every control keyboard operable with a visible focus treatment and a non-color state cue.",
+      "Do collapse pane structure at 1060px and navigation structure at 760px before content becomes cramped."
+    ],
+    "donts": [
+      "Don't turn the workbench into a marketing landing page with oversized claims, hero copy, or conversion-oriented sections.",
+      "Don't present a compliance dashboard or imply certification, guaranteed PII removal, or universal model accuracy.",
+      "Don't use a decorative card catalog that fragments one workflow into floating containers.",
+      "Don't make the tool playful, illustrated, glassy, neon, or heavily animated.",
+      "Don't apply generic admin-template components when they obscure Obscura's actual API concepts.",
+      "Don't introduce gradient text, decorative grid backgrounds, broad purple or blue gradients, oversized corner radii, or border-plus-wide-shadow ghost cards.",
+      "Don't use animation that does not communicate a state change, and always provide a reduced-motion alternative when motion is introduced."
+    ]
+  }
+}

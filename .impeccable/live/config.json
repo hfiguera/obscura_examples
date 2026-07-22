@@ -1,0 +1,6 @@
+{
+  "files": ["lib/obscura_examples_web/components/layouts/root.html.heex"],
+  "insertBefore": "</body>",
+  "commentSyntax": "html",
+  "cspChecked": true
+}

@@ -79,8 +79,8 @@ host and should be included.
 In the Profiles workbench:
 
 1. Select `Emily GPU`.
-2. Enable `Download` only after accepting the external model terms and disk
-   requirements.
+2. Enable `Allow model downloads` only after accepting the external model
+   terms and disk requirements.
 3. Prepare `:balanced` or `:accurate` once.
 4. Reuse the prepared runtime from the Text workbench for that LiveView
    session.
