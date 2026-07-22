@@ -98,6 +98,16 @@ defmodule ObscuraExamplesWeb.WorkbenchLiveTest do
     assert has_element?(view, "td", ":balanced")
     assert has_element?(view, "td", ":accurate")
     assert has_element?(view, ".runtime-state.is-ready", "Ready")
+    assert has_element?(view, ".download-toggle", "Allow model downloads")
+    assert has_element?(view, ".prepare-hint", "Unchecked uses cached assets only.")
+
+    assert has_element?(
+             view,
+             ~s(button.prepare-command[phx-disable-with="Preparing..."]),
+             "Prepare"
+           )
+
+    refute has_element?(view, ~s(button[title="Prepare profile"]))
   end
 
   test "gates model profiles until a reusable runtime is prepared", %{conn: conn} do

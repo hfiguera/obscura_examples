@@ -722,14 +722,20 @@ fieldset legend {
 }
 
 .prepare-form {
-  display: flex;
-  align-items: center;
-  gap: 7px;
+  display: grid;
+  gap: 9px;
+  width: min(100%, 190px);
   margin-top: 8px;
 }
 
+.prepare-options {
+  display: grid;
+  gap: 5px;
+}
+
 .prepare-form select {
-  min-width: 96px;
+  width: 100%;
+  min-width: 164px;
   height: 36px;
   font-size: 11px;
 }
@@ -740,6 +746,42 @@ fieldset legend {
   gap: 5px;
   color: #58645f;
   font-size: 11px;
+}
+
+.download-toggle input {
+  margin: 0;
+}
+
+.prepare-hint {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.prepare-command {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 36px;
+  gap: 6px;
+  padding: 0 12px;
+  color: #ffffff;
+  background: var(--teal);
+  border: 1px solid var(--teal);
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.prepare-command:hover:not(:disabled) {
+  background: var(--teal-dark);
+}
+
+.prepare-command:disabled,
+.prepare-form.phx-submit-loading select,
+.prepare-form.phx-submit-loading .download-toggle {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .capability-band {

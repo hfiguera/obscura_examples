@@ -389,17 +389,35 @@
                   </span>
                   <form :if={row.name != :fast} phx-submit="prepare_profile" class="prepare-form">
                     <input type="hidden" name="profile" value={row.name} />
-                    <select name="backend" aria-label="Backend">
-                      <option :for={{label, value} <- @backend_options} value={value}>
-                        {label}
-                      </option>
-                    </select>
-                    <label class="download-toggle">
-                      <input type="checkbox" name="allow_download" value="true" />
-                      <span>Download</span>
-                    </label>
-                    <button type="submit" class="icon-command" title="Prepare profile">
-                      <.icon name="hero-arrow-down-tray" class="size-5" />
+                    <div class="prepare-options">
+                      <select
+                        name="backend"
+                        aria-label="Backend"
+                        disabled={state.status in [:starting, :working]}
+                      >
+                        <option :for={{label, value} <- @backend_options} value={value}>
+                          {label}
+                        </option>
+                      </select>
+                      <label class="download-toggle">
+                        <input
+                          type="checkbox"
+                          name="allow_download"
+                          value="true"
+                          disabled={state.status in [:starting, :working]}
+                        />
+                        <span>Allow model downloads</span>
+                      </label>
+                      <span class="prepare-hint">Unchecked uses cached assets only.</span>
+                    </div>
+                    <button
+                      type="submit"
+                      class="prepare-command"
+                      disabled={state.status in [:starting, :working]}
+                      phx-disable-with="Preparing..."
+                    >
+                      <.icon name="hero-cpu-chip" class="size-4" />
+                      <span>Prepare</span>
                     </button>
                   </form>
                   <span :if={state[:bytes]} class="byte-count">{state.bytes} bytes</span>
