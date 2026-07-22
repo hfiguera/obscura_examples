@@ -74,11 +74,13 @@ On other platforms, set `OBSCURA_EXAMPLES_EMILY=1` only when Emily supports the
 host and should be included.
 
 On Linux with a supported NVIDIA GPU, install EXLA explicitly and target CUDA
-before fetching and compiling dependencies:
+before fetching and compiling dependencies. Match `XLA_TARGET` to the toolkit
+reported by `nvcc --version`; use `cuda12` for CUDA 12.x and `cuda13` for CUDA
+13.x:
 
 ```sh
 export OBSCURA_EXAMPLES_EXLA=1
-export XLA_TARGET=cuda12
+export XLA_TARGET=cuda13
 export ELIXIR_ERL_OPTIONS="+sssdio 128"
 
 mix deps.get
@@ -103,6 +105,10 @@ client. Loading the EXLA dependency alone is not evidence of GPU execution.
 The `EXLA CUDA` workbench option is shown only when EXLA is installed; CUDA
 availability must still be proven with these runtime checks and visible GPU
 activity during inference.
+
+The reproducible Tesla T4 validation, including CUDA 13 NVSHMEM compatibility
+setup, exact detection evidence, and measured cold/warm latency, is documented
+in [`docs/linux-nvidia-exla-validation.md`](docs/linux-nvidia-exla-validation.md).
 
 In the Profiles workbench:
 
