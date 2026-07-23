@@ -10,7 +10,7 @@ adapters, fixtures, or repository internals.
 The application consumes the published Obscura package from Hex:
 
 ```elixir
-{:obscura, "~> 0.1.0"}
+{:obscura, "~> 0.1.1"}
 ```
 
 `mix.lock` pins the resolved package release and checksum. Update Obscura
