@@ -39,7 +39,7 @@ defmodule ObscuraExamplesWeb.WorkbenchLive do
         entities_expanded: false,
         operators: Demo.operators(),
         backend_options: backend_options(),
-        profile_rows: Demo.profile_rows(),
+        profile_rows: Demo.profile_rows(capabilities_module()),
         runtimes: %{},
         preparation: %{},
         vault: nil,
@@ -337,11 +337,15 @@ defmodule ObscuraExamplesWeb.WorkbenchLive do
       {:noreply, socket}
     else
       status = Map.get(event, :status, Map.get(event, :stage, :working))
-      message = status |> to_string() |> String.replace("_", " ") |> String.capitalize()
+
+      message =
+        Map.get_lazy(event, :message, fn ->
+          status |> to_string() |> String.replace("_", " ") |> String.capitalize()
+        end)
 
       state =
         event
-        |> Map.take([:backend, :allow_download])
+        |> Map.take([:backend, :allow_download, :asset, :commercial_use])
         |> normalize_preparation_state()
         |> Map.merge(%{
           status: :working,
@@ -495,6 +499,41 @@ defmodule ObscuraExamplesWeb.WorkbenchLive do
   defp count_label(1, singular, _plural), do: "1 #{singular}"
   defp count_label(count, _singular, plural), do: "#{count} #{plural}"
 
+  attr :notices, :list, required: true
+
+  defp asset_license_notices(assigns) do
+    ~H"""
+    <div :if={@notices != []} class="asset-license-notices" aria-label="Model asset licensing">
+      <div
+        :for={notice <- @notices}
+        role="note"
+        class={["asset-license-notice", "is-#{notice.status}"]}
+        data-asset={notice.asset}
+        data-commercial-use={notice.commercial_use}
+      >
+        <.icon name="hero-exclamation-triangle" class="size-4" />
+        <div>
+          <strong>{notice.title}</strong>
+          <p>{notice.message}</p>
+          <div class="license-links">
+            <a href={notice.documentation_url} target="_blank" rel="noreferrer">
+              Obscura licensing guide <span class="sr-only">(opens in a new tab)</span>
+            </a>
+            <a
+              :if={notice.source_url}
+              href={notice.source_url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              LDC agreement <span class="sr-only">(opens in a new tab)</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
   defp display_list([]), do: "None"
   defp display_list(items), do: Enum.map_join(items, ", ", &to_string/1)
 
@@ -535,6 +574,10 @@ defmodule ObscuraExamplesWeb.WorkbenchLive do
   defp unprepared_profile?(_profile, _runtimes), do: false
 
   defp backend_options, do: ModelBackend.options()
+
+  defp capabilities_module do
+    Application.get_env(:obscura_examples, :capabilities_module, Obscura.Capabilities)
+  end
 
   defp preparation_for(preparation, profile) do
     Map.get(preparation, profile, %{status: :idle, message: "Not prepared"})

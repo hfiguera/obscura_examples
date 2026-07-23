@@ -27,12 +27,12 @@ defmodule ObscuraExamples.PublicContractTest do
   test "Obscura is fetched from the published Hex release" do
     lock = Mix.Dep.Lock.read()[:obscura]
 
-    assert {:hex, :obscura, "0.1.0", package_checksum, [:mix], _dependencies, "hexpm",
+    assert {:hex, :obscura, "0.1.1", package_checksum, [:mix], _dependencies, "hexpm",
             release_checksum} = lock
 
     assert byte_size(package_checksum) == 64
 
     assert release_checksum ==
-             "1ba57720287dd9a44030e5ed27139876364c636bc0a388cc596ccba7bf070614"
+             "4726751448e85eb38711fa41caca9a461ccd76ad3bb59fd35c8528d2132a745c"
   end
 end
