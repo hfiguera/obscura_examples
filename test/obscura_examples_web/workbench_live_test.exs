@@ -1,5 +1,40 @@
 defmodule ObscuraExamplesWeb.WorkbenchLiveTest do
-  use ObscuraExamplesWeb.ConnCase, async: true
+  use ObscuraExamplesWeb.ConnCase, async: false
+
+  defmodule CapabilitiesFixture do
+    @tner %{
+      "id" => "tner_roberta_large_ontonotes5",
+      "commercial_use" => "requires_ldc_for_profit_membership",
+      "model_repository" => "tner/roberta-large-ontonotes5",
+      "license_sources" => [
+        "https://catalog.ldc.upenn.edu/license/ldc-non-members-agreement.pdf"
+      ]
+    }
+
+    @jean %{
+      "id" => "jean_baptiste_roberta_large_ner_english",
+      "commercial_use" => "deployer_review_required"
+    }
+
+    def assets_for_profile(:fast), do: {:ok, []}
+    def assets_for_profile(:balanced), do: {:ok, [@tner]}
+    def assets_for_profile(:accurate), do: {:ok, [@tner, @jean]}
+  end
+
+  setup do
+    previous = Application.get_env(:obscura_examples, :capabilities_module)
+    Application.put_env(:obscura_examples, :capabilities_module, CapabilitiesFixture)
+
+    on_exit(fn ->
+      if previous do
+        Application.put_env(:obscura_examples, :capabilities_module, previous)
+      else
+        Application.delete_env(:obscura_examples, :capabilities_module)
+      end
+    end)
+
+    :ok
+  end
 
   test "renders the stable capability workbench", %{conn: conn} do
     {:ok, view, html} = live(conn, ~p"/")
@@ -219,8 +254,37 @@ defmodule ObscuraExamplesWeb.WorkbenchLiveTest do
     assert render(view) =~ "tner/roberta-large-ontonotes5"
     assert render(view) =~ "Jean-Baptiste/roberta-large-ner-english"
     assert render(view) =~ "about 1.4 GB"
-    assert render(view) =~ "Obscura does not bundle or license these model assets"
-    assert render(view) =~ "TNER checkpoint licensing is unresolved"
+
+    assert has_element?(
+             view,
+             ~s(.profile-desktop tr[data-profile="balanced"] .asset-license-notice[data-commercial-use="requires_ldc_for_profit_membership"]),
+             "Commercial use requires LDC membership"
+           )
+
+    assert has_element?(
+             view,
+             ~s(.profile-desktop tr[data-profile="accurate"] .asset-license-notice[data-commercial-use="requires_ldc_for_profit_membership"]),
+             "Commercial use requires LDC membership"
+           )
+
+    refute has_element?(
+             view,
+             ~s(.profile-desktop tr[data-profile="fast"] .asset-license-notice)
+           )
+
+    assert has_element?(
+             view,
+             ~s(a[href="https://hexdocs.pm/obscura/model-asset-licensing.html"]),
+             "Obscura licensing guide"
+           )
+
+    assert has_element?(
+             view,
+             ~s(a[href="https://catalog.ldc.upenn.edu/license/ldc-non-members-agreement.pdf"]),
+             "LDC agreement"
+           )
+
+    assert render(view) =~ "Obscura does not grant or verify that authorization"
     assert render(view) =~ "not download size"
     assert has_element?(view, ".preflight-state", "Preflight:")
     assert has_element?(view, ".preflight-message")
@@ -274,6 +338,35 @@ defmodule ObscuraExamplesWeb.WorkbenchLiveTest do
     assert has_element?(view, ".runtime-state", "Preparation cancelled")
     assert has_element?(view, ~s(form[aria-busy="false"]))
     assert has_element?(view, ~s|button.prepare-command[data-profile="balanced"]:not([disabled])|)
+  end
+
+  test "shows the licensing notice before preparation progress", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    send(
+      view.pid,
+      {:profile_progress, :balanced,
+       %{
+         event: :asset_license_notice,
+         asset: "tner_roberta_large_ontonotes5",
+         commercial_use: "requires_ldc_for_profit_membership",
+         message: "Commercial use requires an LDC for-profit membership."
+       }}
+    )
+
+    view |> element(~s(button[phx-value-tool="profiles"])) |> render_click()
+
+    assert has_element?(
+             view,
+             ~s(.profile-desktop tr[data-profile="balanced"] .asset-license-notice),
+             "Commercial use requires LDC membership"
+           )
+
+    assert has_element?(
+             view,
+             ~s(.profile-desktop tr[data-profile="balanced"] .runtime-state),
+             "Commercial use requires an LDC for-profit membership."
+           )
   end
 
   test "documents the local Plug endpoint and exposes a copy control", %{conn: conn} do

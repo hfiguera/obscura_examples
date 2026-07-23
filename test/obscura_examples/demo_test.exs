@@ -3,6 +3,31 @@ defmodule ObscuraExamples.DemoTest do
 
   alias ObscuraExamples.Demo
 
+  defmodule CapabilitiesFixture do
+    def assets_for_profile(:fast), do: {:ok, []}
+
+    def assets_for_profile(:balanced) do
+      {:ok,
+       [
+         %{
+           "id" => "tner_roberta_large_ontonotes5",
+           "commercial_use" => "requires_ldc_for_profit_membership",
+           "model_repository" => "tner/roberta-large-ontonotes5",
+           "license_sources" => [
+             "https://catalog.ldc.upenn.edu/license/ldc-non-members-agreement.pdf"
+           ]
+         }
+       ]}
+    end
+
+    def assets_for_profile(:accurate), do: assets_for_profile(:balanced)
+  end
+
+  defmodule LegacyCapabilitiesFixture do
+    def assets_for_profile(:fast), do: {:ok, []}
+    def assets_for_profile(_profile), do: {:ok, [%{"id" => "legacy_model"}]}
+  end
+
   setup do
     start_supervised!(Obscura.Vault.Memory)
     |> then(&{:ok, vault: &1})
@@ -117,6 +142,31 @@ defmodule ObscuraExamples.DemoTest do
     assert source == "https://huggingface.co/tner/roberta-large-ontonotes5"
     assert length(accurate.preparation.models) == 2
     assert is_binary(accurate.preparation.cache_destination)
+
+    assert [_notice] = balanced.preparation.license_notices
+  end
+
+  test "reports the confirmed TNER commercial-use requirement" do
+    assert [notice] = Demo.asset_license_notices(:balanced, CapabilitiesFixture)
+    assert notice.status == :restricted
+    assert notice.commercial_use == "requires_ldc_for_profit_membership"
+    assert notice.message =~ "requires an LDC for-profit membership"
+    assert notice.message =~ "does not grant or verify"
+
+    assert notice.documentation_url ==
+             "https://hexdocs.pm/obscura/model-asset-licensing.html"
+
+    assert notice.source_url ==
+             "https://catalog.ldc.upenn.edu/license/ldc-non-members-agreement.pdf"
+
+    assert Demo.asset_license_notices(:fast, CapabilitiesFixture) == []
+  end
+
+  test "does not assume commercial clearance when metadata is absent" do
+    assert [notice] = Demo.asset_license_notices(:balanced, LegacyCapabilitiesFixture)
+    assert notice.status == :unknown
+    assert notice.commercial_use == "not_reported"
+    assert notice.message =~ "Do not assume commercial clearance"
   end
 
   test "rejects unsupported entities in crafted submissions", %{vault: vault} do

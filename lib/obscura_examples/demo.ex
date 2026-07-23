@@ -4,6 +4,7 @@ defmodule ObscuraExamples.Demo do
   """
 
   alias Obscura.Anonymizer.Error
+  alias Obscura.Capabilities
   alias Obscura.Diagnostic
 
   @profiles [:fast, :balanced, :accurate]
@@ -48,6 +49,7 @@ defmodule ObscuraExamples.Demo do
     balanced: "about 1.4 GB",
     accurate: "about 2.8 GB"
   }
+  @licensing_guide_url "https://hexdocs.pm/obscura/model-asset-licensing.html"
 
   @spec profiles() :: [atom()]
   def profiles, do: @profiles
@@ -147,8 +149,8 @@ defmodule ObscuraExamples.Demo do
     end
   end
 
-  @spec profile_rows() :: [map()]
-  def profile_rows do
+  @spec profile_rows(module()) :: [map()]
+  def profile_rows(capabilities \\ Capabilities) do
     Enum.map(@profiles, fn profile ->
       {:ok, descriptor} = Obscura.Profile.describe(profile)
 
@@ -170,9 +172,21 @@ defmodule ObscuraExamples.Demo do
         name: profile,
         descriptor: descriptor,
         readiness: readiness,
-        preparation: preparation_details(profile, descriptor)
+        preparation: preparation_details(profile, descriptor, capabilities)
       }
     end)
+  end
+
+  @doc false
+  @spec asset_license_notices(atom(), module()) :: [map()]
+  def asset_license_notices(:fast, _capabilities), do: []
+
+  def asset_license_notices(profile, capabilities) do
+    case capabilities.assets_for_profile(profile) do
+      {:ok, []} -> [unavailable_license_notice("profile_assets_not_reported")]
+      {:ok, assets} -> Enum.map(assets, &asset_license_notice/1)
+      {:error, _reason} -> [unavailable_license_notice("capability_lookup_failed")]
+    end
   end
 
   @spec error_message(term()) :: String.t()
@@ -331,13 +345,74 @@ defmodule ObscuraExamples.Demo do
     end
   end
 
-  defp preparation_details(profile, descriptor) do
+  defp preparation_details(profile, descriptor, capabilities) do
     %{
       models: Enum.map(descriptor.default_models, &Map.fetch!(@model_metadata, &1)),
       approximate_cache_size: Map.get(@profile_cache_estimates, profile, "No model assets"),
       cache_destination: bumblebee_cache_destination(),
-      backend_guidance: backend_guidance(descriptor.backend_policy)
+      backend_guidance: backend_guidance(descriptor.backend_policy),
+      license_notices: asset_license_notices(profile, capabilities)
     }
+  end
+
+  defp asset_license_notice(
+         %{"id" => id, "commercial_use" => "requires_ldc_for_profit_membership"} = asset
+       ) do
+    model = Map.get(asset, "model_repository", id)
+
+    %{
+      asset: id,
+      status: :restricted,
+      commercial_use: "requires_ldc_for_profit_membership",
+      title: "Commercial use requires LDC membership",
+      message:
+        "LDC confirmed that commercial use of #{model} requires an LDC for-profit membership. Obscura does not grant or verify that authorization.",
+      documentation_url: @licensing_guide_url,
+      source_url: ldc_agreement_url(asset)
+    }
+  end
+
+  defp asset_license_notice(%{"id" => id, "commercial_use" => commercial_use}) do
+    %{
+      asset: id,
+      status: :review,
+      commercial_use: commercial_use,
+      title: "External model terms require review",
+      message:
+        "Obscura reports #{commercial_use_label(commercial_use)} for this asset. Stable profile status is not commercial-use clearance.",
+      documentation_url: @licensing_guide_url,
+      source_url: nil
+    }
+  end
+
+  defp asset_license_notice(%{"id" => id}) do
+    unavailable_license_notice(id)
+  end
+
+  defp asset_license_notice(_asset), do: unavailable_license_notice("unknown_asset")
+
+  defp unavailable_license_notice(asset) do
+    %{
+      asset: asset,
+      status: :unknown,
+      commercial_use: "not_reported",
+      title: "Commercial-use status unavailable",
+      message:
+        "The installed Obscura version does not report commercial-use metadata for this model asset. Do not assume commercial clearance; review the current Obscura licensing guide before preparation.",
+      documentation_url: @licensing_guide_url,
+      source_url: nil
+    }
+  end
+
+  defp commercial_use_label(commercial_use) do
+    commercial_use
+    |> String.replace("_", " ")
+  end
+
+  defp ldc_agreement_url(asset) do
+    asset
+    |> Map.get("license_sources", [])
+    |> Enum.find(&String.contains?(&1, "ldc-non-members-agreement.pdf"))
   end
 
   defp bumblebee_cache_destination do

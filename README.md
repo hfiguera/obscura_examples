@@ -113,17 +113,26 @@ in [`docs/linux-nvidia-exla-validation.md`](docs/linux-nvidia-exla-validation.md
 In the Profiles workbench:
 
 1. Select `Emily GPU` on Apple Silicon or `EXLA CUDA` on Linux/NVIDIA.
-2. Enable `Allow model downloads` only after accepting the external model
-   terms and disk requirements.
-3. Prepare `:balanced` or `:accurate` once.
-4. Reuse the prepared runtime from the Text workbench for that LiveView
+2. Review the machine-readable commercial-use notice shown for every external
+   model asset.
+3. Enable `Allow model downloads` only when the intended use is authorized and
+   the disk requirements are acceptable.
+4. Prepare `:balanced` or `:accurate` once.
+5. Reuse the prepared runtime from the Text workbench for that LiveView
    session.
 
 Without the Download option, preparation is cache-only. `:accurate` requires
 two external model repositories and considerably more disk and memory than
-`:balanced`. Obscura does not bundle or license these model assets. The TNER
-checkpoint's licensing remains unresolved; every upstream model and dataset
-term remains the deployer's responsibility.
+`:balanced`. Obscura does not bundle or license these model assets. LDC directly
+confirmed on 2026-07-22 that commercial use of the TNER checkpoint shared by
+both profiles requires an LDC for-profit membership. Obscura does not grant or
+verify that authorization. Use these profiles only for noncommercial evaluation
+or deployments with the required LDC authorization.
+
+The workbench reads this status from `Obscura.Capabilities` rather than
+hard-coding profile rules. When an older Obscura release does not expose
+machine-readable commercial-use metadata, the UI reports the status as
+unavailable and does not imply commercial clearance.
 
 The workbench identifies the Hugging Face repositories before preparation:
 

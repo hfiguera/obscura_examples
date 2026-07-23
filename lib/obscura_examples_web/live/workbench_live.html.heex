@@ -531,7 +531,7 @@
         <div class="profile-guidance">
           <.icon name="hero-information-circle" class="size-5" />
           <p>
-            Preparation never downloads implicitly. Leave download permission unchecked to use cached assets only; missing assets return remediation instead of starting a network request. Obscura does not bundle or license these model assets. TNER checkpoint licensing is unresolved; review every upstream term for your deployment.
+            Preparation never downloads implicitly. Leave download permission unchecked to use cached assets only; missing assets return remediation instead of starting a network request. Stable describes the Obscura interface, not commercial clearance for third-party model assets. Review each profile's licensing notice before preparation.
           </p>
         </div>
 
@@ -547,7 +547,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr :for={row <- @profile_rows}>
+              <tr :for={row <- @profile_rows} data-profile={row.name}>
                 <% state = preparation_for(@preparation, row.name) %>
                 <td>
                   <strong>:{row.name}</strong>
@@ -599,6 +599,7 @@
                   <span :if={row.name != :fast} class="profile-secondary">
                     {row.preparation.backend_guidance}
                   </span>
+                  <.asset_license_notices notices={row.preparation.license_notices} />
                   <form
                     :if={row.name != :fast}
                     phx-submit="prepare_profile"
@@ -664,7 +665,7 @@
         </div>
 
         <div class="profile-list profile-mobile">
-          <article :for={row <- @profile_rows} class="profile-card">
+          <article :for={row <- @profile_rows} class="profile-card" data-profile={row.name}>
             <% state = preparation_for(@preparation, row.name) %>
             <div class="profile-card-heading">
               <strong>:{row.name}</strong>
@@ -742,6 +743,7 @@
                 </dd>
               </div>
             </dl>
+            <.asset_license_notices notices={row.preparation.license_notices} />
             <form
               :if={row.name != :fast}
               phx-submit="prepare_profile"
