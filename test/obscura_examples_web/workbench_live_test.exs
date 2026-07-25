@@ -40,7 +40,7 @@ defmodule ObscuraExamplesWeb.WorkbenchLiveTest do
     {:ok, view, html} = live(conn, ~p"/")
 
     assert html =~ "Obscura"
-    assert html =~ "Hex 0.1.1"
+    assert html =~ "Hex 0.1.2"
     assert html =~ "Text processing"
     assert has_element?(view, "#text-workbench")
     assert has_element?(view, ~s(main[phx-hook="WorkbenchFocus"]))
