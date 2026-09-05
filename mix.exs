@@ -40,7 +40,7 @@ defmodule ObscuraExamples.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:obscura, "~> 0.1.3"},
+      {:obscura, "~> 0.2.0"},
       {:nx, "~> 0.12.0"},
       {:bumblebee, "~> 0.7"},
       {:phoenix, "~> 1.8.9"},

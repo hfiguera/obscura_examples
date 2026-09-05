@@ -16,6 +16,10 @@ defmodule ObscuraExamplesWeb.WorkbenchLiveTest do
       "commercial_use" => "deployer_review_required"
     }
 
+    def assets_for_profile(:efficient),
+      do:
+        {:ok, [%{"id" => "en_core_web_lg_3_8_0", "commercial_use" => "deployer_review_required"}]}
+
     def assets_for_profile(:fast), do: {:ok, []}
     def assets_for_profile(:balanced), do: {:ok, [@tner]}
     def assets_for_profile(:accurate), do: {:ok, [@tner, @jean]}
@@ -40,7 +44,7 @@ defmodule ObscuraExamplesWeb.WorkbenchLiveTest do
     {:ok, view, html} = live(conn, ~p"/")
 
     assert html =~ "Obscura"
-    assert html =~ "Hex 0.1.3"
+    assert html =~ "Hex 0.2.0"
     assert html =~ "Text processing"
     assert has_element?(view, "#text-workbench")
     assert has_element?(view, ~s(main[phx-hook="WorkbenchFocus"]))
