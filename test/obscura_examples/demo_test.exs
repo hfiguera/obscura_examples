@@ -97,7 +97,7 @@ defmodule ObscuraExamples.DemoTest do
 
   test "exposes only the stable product profile set" do
     assert Demo.profiles() == Obscura.Profile.names()
-    assert Demo.profiles() == [:fast, :balanced, :accurate]
+    assert Demo.profiles() == [:fast, :efficient, :balanced, :accurate]
   end
 
   test "exposes canonical entities and profile-specific capabilities" do

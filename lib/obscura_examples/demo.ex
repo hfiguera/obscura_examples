@@ -7,7 +7,7 @@ defmodule ObscuraExamples.Demo do
   alias Obscura.Capabilities
   alias Obscura.Diagnostic
 
-  @profiles [:fast, :balanced, :accurate]
+  @profiles [:fast, :efficient, :balanced, :accurate]
   @common_entities [
     :email,
     :phone,
@@ -36,6 +36,10 @@ defmodule ObscuraExamples.Demo do
   ]
   @operators ~w(replace redact mask hash pseudonymize)
   @model_metadata %{
+    en_core_web_lg_3_8_0: %{
+      name: "spaCy en_core_web_lg 3.8.0",
+      source: "https://spacy.io/models/en#en_core_web_lg"
+    },
     tner_roberta_large_ontonotes5: %{
       name: "tner/roberta-large-ontonotes5",
       source: "https://huggingface.co/tner/roberta-large-ontonotes5"
@@ -46,6 +50,7 @@ defmodule ObscuraExamples.Demo do
     }
   }
   @profile_cache_estimates %{
+    efficient: "about 408 MiB",
     balanced: "about 1.4 GB",
     accurate: "about 2.8 GB"
   }
@@ -349,7 +354,7 @@ defmodule ObscuraExamples.Demo do
     %{
       models: Enum.map(descriptor.default_models, &Map.fetch!(@model_metadata, &1)),
       approximate_cache_size: Map.get(@profile_cache_estimates, profile, "No model assets"),
-      cache_destination: bumblebee_cache_destination(),
+      cache_destination: cache_destination(profile),
       backend_guidance: backend_guidance(descriptor.backend_policy),
       license_notices: asset_license_notices(profile, capabilities)
     }
@@ -415,12 +420,21 @@ defmodule ObscuraExamples.Demo do
     |> Enum.find(&String.contains?(&1, "ldc-non-members-agreement.pdf"))
   end
 
-  defp bumblebee_cache_destination do
+  defp cache_destination(:efficient) do
+    System.get_env("OBSCURA_EFFICIENT_ASSET_DIR") ||
+      Path.join(to_string(:filename.basedir(:user_cache, "obscura")), "efficient/v1")
+  end
+
+  defp cache_destination(_profile) do
     System.get_env("BUMBLEBEE_CACHE_DIR") ||
       :filename.basedir(:user_cache, "bumblebee") |> to_string()
   end
 
   defp backend_guidance(:none), do: "No model backend required."
+
+  defp backend_guidance(:native_cpu) do
+    "Native CPU on Apple Silicon macOS and glibc Linux x86-64/ARM64. Uses installed assets; no GPU backend required."
+  end
 
   defp backend_guidance(:explicit) do
     "Emily uses the Apple Silicon Metal GPU; Binary is the portable CPU path."

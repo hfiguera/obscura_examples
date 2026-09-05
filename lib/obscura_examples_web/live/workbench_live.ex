@@ -286,10 +286,10 @@ defmodule ObscuraExamplesWeb.WorkbenchLive do
 
   def handle_event("prepare_profile", params, socket) do
     with {:ok, profile} <- parse_profile(params["profile"]),
-         {:ok, backend} <- ModelBackend.parse(params["backend"]),
+         {:ok, options, backend} <- preparation_options(profile, params, self()),
          :ok <- ensure_preparation_idle(socket.assigns.preparation, profile) do
       owner = self()
-      allow_download = params["allow_download"] == "true"
+      allow_download = Keyword.get(options, :allow_download, false)
 
       socket =
         socket
@@ -301,12 +301,9 @@ defmodule ObscuraExamplesWeb.WorkbenchLive do
         })
         |> start_async({:prepare, profile}, fn ->
           options =
-            ModelBackend.preparation_options(backend) ++
-              [
-                allow_download: allow_download,
-                compile: [batch_size: 1, sequence_length: 128],
-                progress: fn event -> send(owner, {:profile_progress, profile, event}) end
-              ]
+            Keyword.put(options, :progress, fn event ->
+              send(owner, {:profile_progress, profile, event})
+            end)
 
           Obscura.Profile.prepare(profile, options)
         end)
@@ -320,6 +317,7 @@ defmodule ObscuraExamplesWeb.WorkbenchLive do
 
   def handle_event("cancel_preparation", %{"profile" => profile_name}, socket) do
     with {:ok, profile} <- parse_profile(profile_name),
+         true <- profile != :efficient,
          true <-
            preparation_for(socket.assigns.preparation, profile).status in [:starting, :working] do
       {:noreply,
@@ -583,8 +581,29 @@ defmodule ObscuraExamplesWeb.WorkbenchLive do
     Map.get(preparation, profile, %{status: :idle, message: "Not prepared"})
   end
 
+  defp preparation_options(:efficient, _params, owner) do
+    {:ok, [offline: true, workers: 1, runtime_owner: owner], :native_cpu}
+  end
+
+  defp preparation_options(profile, params, _owner) when profile in [:balanced, :accurate] do
+    with {:ok, backend} <- ModelBackend.parse(params["backend"]) do
+      options =
+        ModelBackend.preparation_options(backend) ++
+          [
+            allow_download: params["allow_download"] == "true",
+            compile: [batch_size: 1, sequence_length: 128]
+          ]
+
+      {:ok, options, backend}
+    end
+  end
+
+  defp preparation_options(_profile, _params, _owner), do: {:error, "No preparation required."}
+
   defp ensure_preparation_idle(preparation, profile) do
-    if preparation_for(preparation, profile).status in [:starting, :working] do
+    status = preparation_for(preparation, profile).status
+
+    if status in [:starting, :working] or (profile == :efficient and status == :ready) do
       {:error, :already_preparing}
     else
       :ok

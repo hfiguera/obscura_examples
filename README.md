@@ -10,7 +10,7 @@ adapters, fixtures, or repository internals.
 The application consumes the published Obscura package from Hex:
 
 ```elixir
-{:obscura, "~> 0.1.3"}
+{:obscura, "~> 0.2.0"}
 ```
 
 `mix.lock` pins the resolved package release and checksum. Update Obscura
@@ -55,6 +55,41 @@ and makes no network call. Pseudonymized values remain reversible while their
 session-vault mappings exist; rehydrated output intentionally restores original
 sensitive values. Detection misses and unconfigured entity types can remain in
 all redacted or pseudonymized output.
+
+## Efficient CPU profile
+
+The workbench exposes all four stable profiles: `:fast`, `:efficient`,
+`:balanced`, and `:accurate`. The fast profile stays ready without model assets.
+
+To enable English person/location NER on Apple Silicon macOS or glibc Linux
+x86-64/ARM64, install the platform libraries (`brew install pcre2` on macOS;
+`apt-get install curl libopenblas0-pthread libpcre2-8-0` on supported Linux),
+install uv **0.12.1**, and provision once:
+
+```sh
+mix obscura.efficient.install --allow-download
+mix obscura.profile.check --profile efficient --prepare --offline --json
+```
+
+Then open **Profiles** and prepare `:efficient`. The workbench loads installed
+assets into one native CPU worker owned by that LiveView session. It reuses
+that runtime across operations and releases it when the session ends. There
+is no backend selector or model download control for this profile. Repeated
+preparation is disabled while it loads and after it is ready; reconnect to
+start a new runtime. Missing assets produce a diagnostic with remediation.
+
+`OBSCURA_EFFICIENT_ASSET_DIR` can select a provisioned deployment directory.
+Assets occupy about 408 MiB. Prebuilt Linux binaries require glibc 2.36+,
+LP64 OpenBLAS, and PCRE2. The native profile uses neither Emily nor EXLA;
+Nx/Bumblebee remain installed for the transformer profiles in this workbench.
+See the [efficient contract and installation guide](https://hexdocs.pm/obscura/0.2.0/efficient.html)
+for supported platforms, model terms, limits, and offline provisioning.
+
+After provisioning, exercise the real native LiveView integration with:
+
+```sh
+OBSCURA_EFFICIENT_TEST=1 mix test test/obscura_examples_web/efficient_profile_test.exs
+```
 
 ## Model Profiles
 

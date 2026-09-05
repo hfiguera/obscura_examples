@@ -13,10 +13,15 @@ concurrency:
 
 jobs:
   precommit:
-    name: Precommit
+    name: Precommit / native=${{ matrix.native }}
+    strategy:
+      fail-fast: false
+      matrix:
+        native: [false, true]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
+      OBSCURA_EFFICIENT_TEST: ${{ matrix.native && '1' || '0' }}
       MIX_ENV: test
       MIX_HOME: ${{ github.workspace }}/.mix
       HEX_HOME: ${{ github.workspace }}/.hex
@@ -50,6 +55,19 @@ jobs:
 
       - name: Fetch dependencies
         run: mix deps.get
+
+      - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+        if: matrix.native
+        with:
+          version: '0.12.1'
+
+      - name: Provision the published efficient assets
+        if: matrix.native
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl libopenblas0-pthread libpcre2-8-0
+          mix compile --warnings-as-errors
+          mix obscura.efficient.install --allow-download
 
       - name: Run precommit validation
         run: mix precommit
