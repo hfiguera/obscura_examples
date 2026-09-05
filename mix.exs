@@ -41,6 +41,7 @@ defmodule ObscuraExamples.MixProject do
   defp deps do
     [
       {:obscura, "~> 0.2.0"},
+      # Emily 1.0.x requires Nx 0.12; keep both backends on the same Nx release line.
       {:nx, "~> 0.12.0"},
       {:bumblebee, "~> 0.7"},
       {:phoenix, "~> 1.8.9"},
@@ -67,7 +68,7 @@ defmodule ObscuraExamples.MixProject do
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
       {:jason, "~> 1.2"},
-      {:dns_cluster, "~> 0.2.0"},
+      {:dns_cluster, "~> 0.3.0"},
       {:bandit, "~> 1.5"}
     ] ++ model_backend_deps()
   end
@@ -79,8 +80,8 @@ defmodule ObscuraExamples.MixProject do
   defp emily_backend_deps do
     case System.get_env("OBSCURA_EXAMPLES_EMILY") do
       "0" -> []
-      "1" -> [{:emily, "~> 0.7"}]
-      nil -> if match?({:unix, :darwin}, :os.type()), do: [{:emily, "~> 0.7"}], else: []
+      "1" -> [{:emily, "~> 1.0"}]
+      nil -> if match?({:unix, :darwin}, :os.type()), do: [{:emily, "~> 1.0"}], else: []
     end
   end
 
